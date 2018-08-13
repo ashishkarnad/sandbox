@@ -28,9 +28,11 @@ git clone https://github.com/sensu/sandbox
 cd sandbox
 ```
 
-**3. Sign up for a free trial of Sensu Enterprise**
+**3. Add your Sensu Enterprise username and password**
 
-https://sensu.io/pricing
+[Sign up for a free trial of Sensu Enterprise](https://account.sensu.io/users/sign_up?plan=silver), and get your access credentials from the [Sensu account manager](https://account.sensu.io/).
+
+Then add your Sensu Enterprise username and password to the sandbox:
 
 ```
 cd enterprise
@@ -41,7 +43,6 @@ export SE_PASS=REPLACEME
 **4. Start Vagrant:**
 
 ```
-cd enterprise
 vagrant up
 ```
 
