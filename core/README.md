@@ -345,8 +345,8 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check-load-time",
-  "output": "Nice! The docs site took 0.516 seconds to load.",
-  "status": 0,
+  "output": "Not great. The docs site took 1.721 seconds to load.",
+  "status": 1,
   "handlers": ["slack"]
 }' \
 http://localhost:4567/results
@@ -354,9 +354,23 @@ http://localhost:4567/results
 
 Check out the Slack channel you configured when creating the webhook, and you should see a message from Sensu.
 
+Let's send another event to resolve the warning:
+
+```
+curl -s -XPOST -H 'Content-Type: application/json' \
+-d '{
+  "source": "docs.sensu.io",
+  "name": "check-load-time",
+  "output": "Nice! The docs site took 0.516 seconds to load.",
+  "status": 0,
+  "handlers": ["slack"]
+}' \
+http://localhost:4567/results
+```
+
 **7. Add a filter to the pipeline**
 
-This is great, but we only really want to be notified by Slack when there's a critical alert.
+This is great, but let's say we only really want to be notified by Slack when there's a critical alert.
 To do this, we'll create a filter using a JSON configuration file:
 
 ```
@@ -391,8 +405,8 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
   "handlers": {
     "slack": {
       "type": "pipe",
-      "command": "handler-slack.rb",
-      "filters": ["only-critical"]
+      "filters": ["only-critical"],
+      "command": "handler-slack.rb"
     }
   },
   "slack": {
@@ -445,10 +459,10 @@ curl -s http://localhost:4567/settings | jq .
   "handlers": {
     "slack": {
       "type": "pipe",
-      "command": "handler-slack.rb",
-      "filters": [
-        "only-critical"
-      ]
+        "filters": [
+          "only-critical"
+        ],
+        "command": "handler-slack.rb"
     }
   },
   "extensions": {},
@@ -483,7 +497,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check-load-time",
-  "output": "Not great. The docs site took 1.780 seconds to load.",
+  "output": "Not great. The docs site took 1.990 seconds to load.",
   "status": 1,
   "handlers": ["slack"]
 }' \
@@ -499,7 +513,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check-load-time",
-  "output": "Something's up. The docs site took 4.272 seconds to load.",
+  "output": "Something is up. The docs site took 4.272 seconds to load.",
   "status": 2,
   "handlers": ["slack"]
 }' \
@@ -508,6 +522,21 @@ http://localhost:4567/results
 
 And we should see it in Slack!
 You can customize your Slack messages using the [Sensu Slack Plugin handler attributes](https://github.com/sensu-plugins/sensu-plugins-slack#usage-for-handler-slackrb).
+
+Before we go, let's create a resolution event.
+(It should not appear in Slack, but we should see the results in the [dashboard client view](http://172.28.128.3:3000/#/clients).)
+
+```
+curl -s -XPOST -H 'Content-Type: application/json' \
+-d '{
+  "source": "docs.sensu.io",
+  "name": "check-load-time",
+  "output": "Nice! The docs site took 0.608 seconds to load.",
+  "status": 0,
+  "handlers": ["slack"]
+}' \
+http://localhost:4567/results
+```
 
 Great work. You've created your first Sensu pipeline!
 In the next lesson, we'll tap into the power of Sensu by adding a Sensu client to automate event production.
@@ -530,13 +559,13 @@ sudo sensu-install -p sensu-plugins-graphite
 Then we'll create the pipeline using a handler configuration file:
 
 ```
-sudo nano /etc/sensu/conf.d/handlers/graphite.json
+sudo nano /etc/sensu/conf.d/handlers/graphite_tcp.json
 ```
 
 ```
 {
   "handlers": {
-    "graphite": {
+    "graphite_tcp": {
       "type": "tcp",
       "socket": {
         "host":"127.0.0.1",
@@ -591,12 +620,12 @@ curl -s http://localhost:4567/settings | jq .
   "handlers": {
     "slack": {
       "type": "pipe",
-      "command": "handler-slack.rb",
       "filters": [
         "only-critical"
-      ]
+      ],
+      "command": "handler-slack.rb"
     },
-    "graphite": {
+    "graphite_tcp": {
       "type": "tcp",
       "socket": {
         "host": "127.0.0.1",
@@ -687,13 +716,13 @@ sudo nano /etc/sensu/conf.d/client.json
 }
 ```
 
-**3. Restart the Sensu client, server, and API:**
+**4. Restart the Sensu client, server, and API:**
 
 ```
 sudo systemctl restart sensu-{client,server,api}
 ```
 
-**4. Use the clients API to make sure the subscription is assigned to the client:**
+**5. Use the clients API to make sure the subscription is assigned to the client:**
 
 ```
 curl -s http://localhost:4567/clients | jq .
@@ -726,7 +755,9 @@ curl -s http://localhost:4567/clients | jq .
 ]
 ```
 
-**5. Install the Sensu HTTP Plugin to check the load time for docs.sensu.io:**
+If you don't see the new subscription, wait a few seconds and try the settings API again.
+
+**6. Install the Sensu HTTP Plugin to check the load time for docs.sensu.io:**
 
 Now we want to create a check that will automatically check the load time for the docs site in place of us creating events manually using the API.
 To do this, we'll install the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http).
@@ -752,9 +783,9 @@ sensu-core-sandbox.curl_timings.time_starttransfer 0.597 1534193106
 sensu-core-sandbox.curl_timings.http_code 200 1534193106
 ```
 
-**6. Create a check that gets the load time metrics for docs.sensu.io**
+**7. Create a check that gets the load time metrics for docs.sensu.io**
 
-Use a JSON configuration file to create a check that runs `metrics-curl.rb` on all clients with the `sandbox-testing` subscription:
+Use a JSON configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check-load-time.json
@@ -769,7 +800,7 @@ sudo nano /etc/sensu/conf.d/checks/check-load-time.json
       "interval": 10,
       "subscribers": ["sandbox-testing"],
       "type": "metric",
-      "handlers": ["graphite"]
+      "handlers": ["graphite_tcp"]
     }
   }
 }
@@ -777,13 +808,13 @@ sudo nano /etc/sensu/conf.d/checks/check-load-time.json
 
 Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
 
-**7. Restart the Sensu client, server, and API**
+**8. Restart the Sensu client, server, and API**
 
 ```
 sudo systemctl restart sensu-{client,server,api}
 ```
 
-**8. Use the settings API to make sure the check has been created:**
+**9. Use the settings API to make sure the check has been created:**
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -822,7 +853,7 @@ curl -s http://localhost:4567/settings | jq .
       ],
       "type": "metric",
       "handlers": [
-        "graphite"
+        "graphite_tcp"
       ]
     }
   },
@@ -839,12 +870,12 @@ curl -s http://localhost:4567/settings | jq .
   "handlers": {
     "slack": {
       "type": "pipe",
-      "command": "handler-slack.rb",
       "filters": [
         "only-critical"
-      ]
+      ],
+      "command": "handler-slack.rb"
     },
-    "graphite": {
+    "graphite_tcp": {
       "type": "tcp",
       "socket": {
         "host": "127.0.0.1",
@@ -872,10 +903,9 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**9. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients):**
+**10. See the automated events in [Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients):**
 
-
-**10. Automate CPU usage events for the sandbox**
+**11. Automate CPU usage events for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
 For example, let's say we want to monitor the disk usage on the sandbox.
@@ -913,7 +943,7 @@ sensu-core-sandbox.disk_usage.root.vagrant.avail 425716 1534191189
 sensu-core-sandbox.disk_usage.root.vagrant.used_percentage 11 1534191189
 ```
 
-Then create the check using a JSON configuration file, assigning it to the `sandbox-testing` subscription and the `graphite` pipeline:
+Then create the check using a JSON configuration file, assigning it to the `sandbox-testing` subscription and the `graphite_tcp` pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check-disk-usage.json
@@ -927,7 +957,7 @@ sudo nano /etc/sensu/conf.d/checks/check-disk-usage.json
       "interval": 10,
       "subscribers": ["sandbox-testing"],
       "type": "metric",
-      "handlers": ["graphite"]
+      "handlers": ["graphite_tcp"]
     }
   }
 }
@@ -978,7 +1008,7 @@ curl -s http://localhost:4567/settings | jq .
       ],
       "type": "metric",
       "handlers": [
-        "graphite"
+        "graphite_tcp"
       ]
     },
     "check-disk-usage": {
@@ -989,7 +1019,7 @@ curl -s http://localhost:4567/settings | jq .
       ],
       "type": "metric",
       "handlers": [
-        "graphite"
+        "graphite_tcp"
       ]
     }
   },
@@ -1011,7 +1041,7 @@ curl -s http://localhost:4567/settings | jq .
         "only-critical"
       ]
     },
-    "graphite": {
+    "graphite_tcp": {
       "type": "tcp",
       "socket": {
         "host": "127.0.0.1",

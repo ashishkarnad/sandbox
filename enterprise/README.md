@@ -661,7 +661,7 @@ sensu-enterprise-sandbox.curl_timings.http_code 200 1534190765
 
 **6. Create a check that gets the load time metrics for docs.sensu.io**
 
-Use a JSON configuration file to create a check that runs `metrics-curl.rb` on all clients with the `sandbox-testing` subscription:
+Use a JSON configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check-load-time.json
