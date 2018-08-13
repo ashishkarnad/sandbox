@@ -67,7 +67,6 @@ We can see that we have no active clients, and that Sensu is using RabbitMQ as t
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
 
 ```json
-$ curl -s http://localhost:4567/settings | jq .
 {
   "client": {},
   "sensu": {
@@ -634,13 +633,16 @@ curl -s http://localhost:4567/clients | jq .
 
 **5. Install the Sensu HTTP Plugin to check the load time for docs.sensu.io:**
 
+Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community.
+In this lesson, we'll be using the [Sensu HTTP Plugin's](https://github.com/sensu-plugins/sensu-plugins-http) `metrics-curl.rb` script to create our check.
+You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins).
+
+First we'll need to install the plugin:
+
 ```
 sudo sensu-install -p sensu-plugins-http
 ```
 
-> Source: [Sensu HTTP Plugin on GitHub](https://github.com/sensu-plugins/sensu-plugins-http)
-
-From the Sensu HTTP Plugin, we'll be using the `metrics-curl.rb` script.
 We can test its output using:
 
 ```

@@ -57,7 +57,6 @@ We can see that we have no active clients, and that Sensu is using RabbitMQ as t
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
 
 ```json
-$ curl -s http://localhost:4567/settings | jq .
 {
   "client": {},
   "sensu": {
@@ -243,7 +242,7 @@ You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-pl
 First we'll need to install the plugin:
 
 ```
-sudo sensu-install -p sensu-plugins-graphite
+sudo sensu-install -p sensu-plugins-slack
 ```
 
 _PRO TIP: Check out Sensu Enterprise's [built-in integrations](https://docs.sensu.io/sensu-enterprise/3.1/built-in-handlers), including Slack, email, IRC, and more._
