@@ -275,7 +275,7 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
 }
 ```
 
-**4. Restart the Sensu server and API**
+**4. Restart the Sensu server and API:**
 
 We'll need to restart the Sensu server and API whenever making a change to Sensu's JSON configuration files.
 
@@ -283,7 +283,7 @@ We'll need to restart the Sensu server and API whenever making a change to Sensu
 sudo systemctl restart sensu-{server,api}
 ```
 
-**5. Use the settings API to see our Slack handler**
+**5. Use the settings API to see our Slack handler:**
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -414,7 +414,61 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 ```
-
+{
+  "client": {},
+  "sensu": {
+    "spawn": {
+      "limit": 12
+    },
+    "keepalives": {
+      "thresholds": {
+        "warning": 120,
+        "critical": 180
+      }
+    }
+  },
+  "transport": {
+    "name": "rabbitmq",
+    "reconnect_on_error": true
+  },
+  "checks": {},
+  "filters": {
+    "only-critical": {
+      "attributes": {
+        "check": {
+          "status": 2
+        }
+      }
+    }
+  },
+  "mutators": {},
+  "handlers": {
+    "slack": {
+      "type": "pipe",
+      "command": "handler-slack.rb",
+      "filters": [
+        "only-critical"
+      ]
+    }
+  },
+  "extensions": {},
+  "rabbitmq": {
+    "host": "127.0.0.1",
+    "port": 5672,
+    "vhost": "/sensu",
+    "user": "sensu",
+    "password": "REDACTED",
+    "heartbeat": 30,
+    "prefetch": 50
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379
+  },
+  "slack": {
+    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
+  }
+}
 ```
 
 If you don't get a response from the API here, check for invalid JSON in `/etc/sensu/conf.d/handlers/slack.json` and `/etc/sensu/conf.d/filters/only-critical.json`.
