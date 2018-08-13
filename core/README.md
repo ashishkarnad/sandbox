@@ -511,3 +511,533 @@ You can customize your Slack messages using the [Sensu Slack Plugin handler attr
 
 Great work. You've created your first Sensu pipeline!
 In the next lesson, we'll tap into the power of Sensu by adding a Sensu client to automate event production.
+
+---
+
+## Lesson \#3: Automate event production with the Sensu client
+So far we've used only the Sensu server and API, but in this lesson, we'll add the Sensu client and create a check to produce events automatically.
+Instead of using Slack, we'll use [Graphite](http://graphite.readthedocs.io/en/latest/) to store event data.
+
+**1. Create a Graphite pipeline**
+
+This is review from the last lesson.
+First, we'll install the Sensu Graphite Plugin:
+
+```
+sudo sensu-install -p sensu-plugins-graphite
+```
+
+Then we'll create the pipeline using a handler configuration file:
+
+```
+sudo nano /etc/sensu/conf.d/handlers/graphite.json
+```
+
+```
+{
+  "handlers": {
+    "graphite": {
+      "type": "tcp",
+      "socket": {
+        "host":"127.0.0.1",
+        "port":2003
+      }
+    }
+  }
+}
+```
+
+Restart the Sensu server and API:
+
+```
+sudo systemctl restart sensu-{server,api}
+```
+
+And finally check out work using the settings API:
+
+```
+curl -s http://localhost:4567/settings | jq .
+```
+
+```
+{
+  "client": {},
+  "sensu": {
+    "spawn": {
+      "limit": 12
+    },
+    "keepalives": {
+      "thresholds": {
+        "warning": 120,
+        "critical": 180
+      }
+    }
+  },
+  "transport": {
+    "name": "rabbitmq",
+    "reconnect_on_error": true
+  },
+  "checks": {},
+  "filters": {
+    "only-critical": {
+      "attributes": {
+        "check": {
+          "status": 2
+        }
+      }
+    }
+  },
+  "mutators": {},
+  "handlers": {
+    "slack": {
+      "type": "pipe",
+      "command": "handler-slack.rb",
+      "filters": [
+        "only-critical"
+      ]
+    },
+    "graphite": {
+      "type": "tcp",
+      "socket": {
+        "host": "127.0.0.1",
+        "port": 2003
+      }
+    }
+  },
+  "extensions": {},
+  "rabbitmq": {
+    "host": "127.0.0.1",
+    "port": 5672,
+    "vhost": "/sensu",
+    "user": "sensu",
+    "password": "REDACTED",
+    "heartbeat": 30,
+    "prefetch": 50
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379
+  },
+  "slack": {
+    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
+  }
+}
+```
+
+**2. Start the Sensu client:**
+
+Now that we have our Graphite pipeline set up, let's start the Sensu client:
+
+```
+sudo systemctl start sensu-client
+```
+
+We can see the client start up using the clients API:
+
+```
+curl -s http://localhost:4567/clients | jq .
+```
+
+```
+[
+  {
+    "name": "sensu-core-sandbox",
+    "address": "10.0.2.15",
+    "subscriptions": [
+      "client:sensu-core-sandbox"
+    ],
+    "version": "1.4.3",
+    "timestamp": 1534100148
+  },
+  {
+    "name": "docs.sensu.io",
+    "address": "unknown",
+    "environment": "production",
+    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
+    "keepalives": false,
+    "version": "1.4.3",
+    "timestamp": 1534098558,
+    "subscriptions": [
+      "client:docs.sensu.io"
+    ]
+  }
+]
+```
+
+In the [dashboard client view](http://172.28.128.3:3000/#/clients), note that the client running in the sandbox executes keepalive checks while the `docs.sensu.io` proxy client cannot.
+
+_NOTE: The client gets its name from the `sensu.name` attributed configured as part of sandbox setup.
+You can change the client name using `sudo nano /etc/sensu/uchiwa.json`_
+
+**3. Add a client subscription**
+
+Clients run the set of checks defined by their `subscriptions`.
+Use a JSON configuration file to assign our new client to run checks with the `sandbox-testing` subscription using `"subscriptions": ["sandbox-testing"]`:
+
+```
+sudo nano /etc/sensu/conf.d/client.json
+```
+
+```
+{
+  "client": {
+    "name": "sensu-core-sandbox",
+    "subscriptions": ["sandbox-testing"]
+  }
+}
+```
+
+**3. Restart the Sensu client, server, and API:**
+
+```
+sudo systemctl restart sensu-{client,server,api}
+```
+
+**4. Use the clients API to make sure the subscription is assigned to the client:**
+
+```
+curl -s http://localhost:4567/clients | jq .
+```
+
+```
+[
+  {
+    "name": "sensu-core-sandbox",
+    "address": "10.0.2.15",
+    "subscriptions": [
+      "sandbox-testing",
+      "client:sensu-core-sandbox"
+    ],
+    "version": "1.4.3",
+    "timestamp": 1534100148
+  },
+  {
+    "name": "docs.sensu.io",
+    "address": "unknown",
+    "environment": "production",
+    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
+    "keepalives": false,
+    "version": "1.4.3",
+    "timestamp": 1534098558,
+    "subscriptions": [
+      "client:docs.sensu.io"
+    ]
+  }
+]
+```
+
+**5. Install the Sensu HTTP Plugin to check the load time for docs.sensu.io:**
+
+Now we want to create a check that will automatically check the load time for the docs site in place of us creating events manually using the API.
+To do this, we'll install the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http).
+
+```
+sudo sensu-install -p sensu-plugins-http
+```
+
+From the Sensu HTTP Plugin, we'll be using the `metrics-curl.rb` script.
+We can test its output using:
+
+```
+/opt/sensu/embedded/bin/metrics-curl.rb -u https://docs.sensu.io
+```
+
+```
+sensu-core-sandbox.curl_timings.time_total 0.597 1534193106
+sensu-core-sandbox.curl_timings.time_namelookup 0.065 1534193106
+sensu-core-sandbox.curl_timings.time_connect 0.147 1534193106
+sensu-core-sandbox.curl_timings.time_pretransfer 0.418 1534193106
+sensu-core-sandbox.curl_timings.time_redirect 0.000 1534193106
+sensu-core-sandbox.curl_timings.time_starttransfer 0.597 1534193106
+sensu-core-sandbox.curl_timings.http_code 200 1534193106
+```
+
+**6. Create a check that gets the load time metrics for docs.sensu.io**
+
+Use a JSON configuration file to create a check that runs `metrics-curl.rb` on all clients with the `sandbox-testing` subscription:
+
+```
+sudo nano /etc/sensu/conf.d/checks/check-load-time.json
+```
+
+```
+{
+  "checks": {
+    "check-load-time": {
+      "source": "docs.sensu.io",
+      "command": "metrics-curl.rb -u https://docs.sensu.io",
+      "interval": 10,
+      "subscribers": ["sandbox-testing"],
+      "type": "metric",
+      "handlers": ["graphite"]
+    }
+  }
+}
+```
+
+Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
+
+**7. Restart the Sensu client, server, and API**
+
+```
+sudo systemctl restart sensu-{client,server,api}
+```
+
+**8. Use the settings API to make sure the check has been created:**
+
+```
+curl -s http://localhost:4567/settings | jq .
+```
+
+```
+{
+  "client": {
+    "name": "sensu-core-sandbox",
+    "subscriptions": [
+      "sandbox-testing"
+    ]
+  },
+  "sensu": {
+    "spawn": {
+      "limit": 12
+    },
+    "keepalives": {
+      "thresholds": {
+        "warning": 120,
+        "critical": 180
+      }
+    }
+  },
+  "transport": {
+    "name": "rabbitmq",
+    "reconnect_on_error": true
+  },
+  "checks": {
+    "check-load-time": {
+      "source": "docs.sensu.io",
+      "command": "metrics-curl.rb -u https://docs.sensu.io",
+      "interval": 10,
+      "subscribers": [
+        "sandbox-testing"
+      ],
+      "type": "metric",
+      "handlers": [
+        "graphite"
+      ]
+    }
+  },
+  "filters": {
+    "only-critical": {
+      "attributes": {
+        "check": {
+          "status": 2
+        }
+      }
+    }
+  },
+  "mutators": {},
+  "handlers": {
+    "slack": {
+      "type": "pipe",
+      "command": "handler-slack.rb",
+      "filters": [
+        "only-critical"
+      ]
+    },
+    "graphite": {
+      "type": "tcp",
+      "socket": {
+        "host": "127.0.0.1",
+        "port": 2003
+      }
+    }
+  },
+  "extensions": {},
+  "rabbitmq": {
+    "host": "127.0.0.1",
+    "port": 5672,
+    "vhost": "/sensu",
+    "user": "sensu",
+    "password": "REDACTED",
+    "heartbeat": 30,
+    "prefetch": 50
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379
+  },
+  "slack": {
+    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
+  }
+}
+```
+
+**9. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients):**
+
+
+**10. Automate CPU usage events for the sandbox**
+
+Now that we have a client and subscription set up, we can easily add more checks.
+For example, let's say we want to monitor the disk usage on the sandbox.
+
+First, install the plugin:
+
+```
+sudo sensu-install -p sensu-plugins-disk-checks
+```
+
+And test it:
+
+```
+/opt/sensu/embedded/bin/metrics-disk-usage.rb
+```
+
+```
+sensu-core-sandbox.disk_usage.root.used 2235 1534191189
+sensu-core-sandbox.disk_usage.root.avail 39714 1534191189
+sensu-core-sandbox.disk_usage.root.used_percentage 6 1534191189
+sensu-core-sandbox.disk_usage.root.dev.used 0 1534191189
+sensu-core-sandbox.disk_usage.root.dev.avail 910 1534191189
+sensu-core-sandbox.disk_usage.root.dev.used_percentage 0 1534191189
+sensu-core-sandbox.disk_usage.root.run.used 9 1534191189
+sensu-core-sandbox.disk_usage.root.run.avail 912 1534191189
+sensu-core-sandbox.disk_usage.root.run.used_percentage 1 1534191189
+sensu-core-sandbox.disk_usage.root.home.used 33 1534191189
+sensu-core-sandbox.disk_usage.root.home.avail 20446 1534191189
+sensu-core-sandbox.disk_usage.root.home.used_percentage 1 1534191189
+sensu-core-sandbox.disk_usage.root.boot.used 171 1534191189
+sensu-core-sandbox.disk_usage.root.boot.avail 844 1534191189
+sensu-core-sandbox.disk_usage.root.boot.used_percentage 17 1534191189
+sensu-core-sandbox.disk_usage.root.vagrant.used 51087 1534191189
+sensu-core-sandbox.disk_usage.root.vagrant.avail 425716 1534191189
+sensu-core-sandbox.disk_usage.root.vagrant.used_percentage 11 1534191189
+```
+
+Then create the check using a JSON configuration file, assigning it to the `sandbox-testing` subscription and the `graphite` pipeline:
+
+```
+sudo nano /etc/sensu/conf.d/checks/check-disk-usage.json
+```
+
+```
+{
+  "checks": {
+    "check-disk-usage": {
+      "command": "/opt/sensu/embedded/bin/metrics-disk-usage.rb",
+      "interval": 10,
+      "subscribers": ["sandbox-testing"],
+      "type": "metric",
+      "handlers": ["graphite"]
+    }
+  }
+}
+```
+
+Finally, restart all the things:
+
+```
+sudo systemctl restart sensu-{client,server,api}
+```
+
+And you should see it working in the dashboard client view and via the settings API:
+
+```
+curl -s http://localhost:4567/settings | jq .
+```
+
+```
+{
+  "client": {
+    "name": "sensu-core-sandbox",
+    "subscriptions": [
+      "sandbox-testing"
+    ]
+  },
+  "sensu": {
+    "spawn": {
+      "limit": 12
+    },
+    "keepalives": {
+      "thresholds": {
+        "warning": 120,
+        "critical": 180
+      }
+    }
+  },
+  "transport": {
+    "name": "rabbitmq",
+    "reconnect_on_error": true
+  },
+  "checks": {
+    "check-load-time": {
+      "source": "docs.sensu.io",
+      "command": "metrics-curl.rb -u https://docs.sensu.io",
+      "interval": 10,
+      "subscribers": [
+        "sandbox-testing"
+      ],
+      "type": "metric",
+      "handlers": [
+        "graphite"
+      ]
+    },
+    "check-disk-usage": {
+      "command": "/opt/sensu/embedded/bin/metrics-disk-usage.rb",
+      "interval": 10,
+      "subscribers": [
+        "sandbox-testing"
+      ],
+      "type": "metric",
+      "handlers": [
+        "graphite"
+      ]
+    }
+  },
+  "filters": {
+    "only-critical": {
+      "attributes": {
+        "check": {
+          "status": 2
+        }
+      }
+    }
+  },
+  "mutators": {},
+  "handlers": {
+    "slack": {
+      "type": "pipe",
+      "command": "handler-slack.rb",
+      "filters": [
+        "only-critical"
+      ]
+    },
+    "graphite": {
+      "type": "tcp",
+      "socket": {
+        "host": "127.0.0.1",
+        "port": 2003
+      }
+    }
+  },
+  "extensions": {},
+  "rabbitmq": {
+    "host": "127.0.0.1",
+    "port": 5672,
+    "vhost": "/sensu",
+    "user": "sensu",
+    "password": "REDACTED",
+    "heartbeat": 30,
+    "prefetch": 50
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379
+  },
+  "slack": {
+    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
+  }
+}
+```
+
+Now we should be able to see disk usage metrics in Graphite in addition to the docs site load times.
+
