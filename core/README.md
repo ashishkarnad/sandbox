@@ -2,11 +2,10 @@
 
 This tutorial will get you up and running with Sensu.
 
-- Sandbox installation and setup
-- Lesson 1: Creating monitoring events
-- Lesson 2: Creating an event pipeline
-- Lesson 3: Automating event production with the Sensu client
-
+- [Set up the sandbox](#set-up-the-sandbox)
+- [Lesson \#1: Create a monitoring event](#lesson-1-create-a-monitoring-event)
+- [Lesson \#2: Create an event pipeline](#lesson-2-create-an-event-pipeline)
+- [Lesson \#3: Automate event production with the Sensu client](#lesson-3-automate-event-production-with-the-sensu-client)
 
 We'd love to hear your feedback!
 While this sandbox is internal to Sensu, please add feedback to this [GoogleDoc](https://docs.google.com/document/d/1HSIkd3wO6ulAiya3aWB6MjCReYwLdkKIrY4_d4BkFfo/edit#).
@@ -122,7 +121,7 @@ curl -s http://localhost:4567/events | jq .
 
 _NOTE: The events API returns only warning (`"status": 1`) and critical (`"status": 2`) events._
 
-This event data contains information about part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
+This event data contains information about the part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
 
 This event data tells us that this is a warning-level alert (`"status": 1`) from `check-load-time` on `docs.sensu.io`.
 We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
