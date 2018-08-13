@@ -7,6 +7,10 @@ This tutorial will get you up and running with Sensu.
 - Lesson 2: Creating an event pipeline
 - Lesson 3: Automating event production with the Sensu client
 
+
+We'd love to hear your feedback!
+While this sandbox is internal to Sensu, please add feedback to this [GoogleDoc](https://docs.google.com/document/d/1HSIkd3wO6ulAiya3aWB6MjCReYwLdkKIrY4_d4BkFfo/edit#).
+
 ---
 
 ## Set up the sandbox

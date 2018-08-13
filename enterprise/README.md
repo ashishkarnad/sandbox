@@ -7,6 +7,9 @@ This tutorial will get you up and running with Sensu Enterprise.
 - Lesson 2: Creating an event pipeline
 - Lesson 3: Automating event production with the Sensu client
 
+We'd love to hear your feedback!
+While this sandbox is internal to Sensu, please add feedback to this [GoogleDoc](https://docs.google.com/document/d/1HSIkd3wO6ulAiya3aWB6MjCReYwLdkKIrY4_d4BkFfo/edit#).
+
 ---
 
 ## Set up the sandbox
@@ -128,10 +131,10 @@ curl -s http://localhost:4567/events | jq .
 
 _NOTE: The events API returns only warning (`"status": 1`) and critical (`"status": 2`) events._
 
-This event data contains information about the client the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
+This event data contains information about the part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
 
 This event data tells us that this is a warning-level alert (`"status": 1`) from `check-load-time` on `docs.sensu.io`.
-We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients)..
+We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
 
 ```
 [
@@ -319,7 +322,7 @@ curl -s http://localhost:4567/settings | jq .
 Let's use the results API to create a few events that represent varying load times for the docs site and assign them to the pipeline we created by adding `"handlers": ["graphite"]`.
 
 _NOTE: Since the data from this event is going to Graphite, the `output` needs to be formatted as [Graphite plaintext](https://graphite.readthedocs.io/en/latest/feeding-carbon.html?highlight=plaintext#the-plaintext-protocol).
-So since we're creating this event using the API, we need to add `date +%s` to include a timestamp._
+And since we're creating this event using the API, we need to add `date +%s` to include a timestamp._
 
 ```
 curl -s -XPOST -H 'Content-Type: application/json' \
@@ -369,31 +372,32 @@ http://localhost:4567/results && sleep 10s && curl -s -XPOST -H 'Content-Type: a
 http://localhost:4567/results
 ```
 
-After about 30 seconds, we'll be able to see the [event data in Graphite](http://172.28.128.3/).
+After a few seconds, we'll be able to see the [event data in Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes).
 
 **5. Add a filter to the pipeline**
 
 Let's say we've set up a development instance of docs.sensu.io that we also want to monitor, but we only want our Graphite graph to contain data from production.
-Use a JSON configuration file to create a filter that allows only events with the attribute `"environment": "production"`:
+To do this, we'll add a filter to our Graphite pipeline by creating a JSON configuration file:
 
 ```
-sudo nano /etc/sensu/conf.d/filters/production.json
+sudo nano /etc/sensu/conf.d/filters/only-production.json
 ```
 
 ```
 {
   "filters": {
-    "production": {
+    "only-production": {
       "attributes": {
         "check": {
           "environment": "production"
         }
-      },
-      "negate": false
+      }
     }
   }
 }
 ```
+
+This tells Sensu to check the event data (within the `check` scope) and only allow events with `"environment": "production"` to continue through the pipeline.
 
 Now we'll hook up the `only-production` filter to the `graphite` handler by adding `"filters": ["only-production"]` to the handler configuration:
 
@@ -406,18 +410,18 @@ sudo nano /etc/sensu/conf.d/handlers/graphite.json
   "graphite": {
     "host": "127.0.0.1",
     "port": 2003,
-    "filters": ["production"]
+    "filters": ["only-production"]
   }
 }
 ```
 
-**7. Restart Sensu Enteprirse**
+**6. Restart Sensu Enteprirse**
 
 ```
 sudo systemctl reload sensu-enterprise
 ```
 
-**8. Use the settings API to see the only-production filter:**
+**7. Use the settings API to see the only-production filter:**
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -476,6 +480,8 @@ curl -s http://localhost:4567/settings | jq .
   }
 }
 ```
+
+**8. Send events to the filtered pipeline**
 
 Now any events we create must include `"environment": "production"` in order to be handled by the Graphite pipeline.
 Let's test it out by creating an event without an `environment` attribute:
