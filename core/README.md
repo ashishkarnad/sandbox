@@ -35,7 +35,7 @@ cd core
 vagrant up
 ```
 
-This can take up to five minutes.
+This will take around five minutes, so if you haven't already, [read about how Sensu works]().
 
 **4. SSH into the sandbox:**
 
@@ -47,13 +47,15 @@ vagrant ssh
 
 ## Lesson \#1: Create a monitoring event
 
+First off, we'll make sure everything is working correctly by creating a few events with the Sensu server and API.
+
 **1. Use the settings API to see Sensu's configuration:**
 
 ```
 curl -s http://localhost:4567/settings | jq .
 ```
 
-We can see that we have no active clients, and that Sensu is using RabbitMQ as the transport and Redis as the datastore.
+With our sandbox server, we can see that we have no active clients, and that Sensu is using RabbitMQ as the transport and Redis as the datastore.
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
 
 ```json
@@ -95,22 +97,24 @@ We can see a lot of this same information in the [dashboard datacenter view](htt
 }
 ```
 
-**2. Use the results API to create an event that warns us that docs.sensu.io is loading slowly:**
+**2. Create an event that warns us that docs.sensu.io is loading slowly (and resolve it)**
+
+Let's say we have an application that can curl the Sensu docs site and output a string with the response time.
+We can use the results API to create an event that represents a warning from our pseudo-app that the docs site is getting slow.
 
 ```
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
-  "name": "check-load-time",
-  "output": "The docs site took 2.142 seconds to load.",
+  "name": "check_curl_timings",
+  "output": "Not great. Total time: x.xxx seconds.",
   "status": 1
 }' \
 http://localhost:4567/results
 ```
 
-Since we're creating this event using the API, Sensu doesn't know where this information is coming from, so we use `source` to tell Sensu that we're using a remote source (called a proxy client).
-The `status` tells Sensu that it's a warning-level event.
-(Event status: 0 = OK, 1 = warning, 2 = critical)
+Since we're creating this event using the API, Sensu doesn't know where this information is coming from, so we use the `source` attribute to tell Sensu that we're creating this event on behalf of a remote source.
+The `status` attribute represents a warning-level event (0 = OK, 1 = warning, 2 = critical),
 
 We can use the events API to see the resulting event:
 
@@ -120,12 +124,12 @@ curl -s http://localhost:4567/events | jq .
 
 _NOTE: The events API returns only warning (`"status": 1`) and critical (`"status": 2`) events._
 
-This event data contains information about the part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
+Event data contains information about the part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
 
-This event data tells us that this is a warning-level alert (`"status": 1`) from `check-load-time` on `docs.sensu.io`.
+This event's data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
 We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
 
-```
+```json
 [
   {
     "id": "188add2a-66aa-4fd8-aeed-bd16775e5f2d",
@@ -142,8 +146,8 @@ We can also see the alert and the client in the [dashboard event view](http://17
     },
     "check": {
       "source": "docs.sensu.io",
-      "name": "check-load-time",
-      "output": "The docs site took 2.142 seconds to load.",
+      "name": "check_curl_timings",
+      "output": "Not great. Total time: x.xxx seconds.",
       "status": 1,
       "issued": 1533923797,
       "executed": 1533923797,
@@ -173,8 +177,8 @@ Now let's resolve it by creating another event to represent the docs site loadin
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
-  "name": "check-load-time",
-  "output": "The docs site took 0.673 seconds to load.",
+  "name": "check_curl_timings",
+  "output": "Nice! Total time: x.xxx seconds.",
   "status": 0
 }' \
 http://localhost:4567/results
@@ -205,7 +209,7 @@ You can see the new `environment` and `playbook` attributes in the [dashboard cl
 curl -s http://localhost:4567/clients | jq .
 ```
 
-```
+```json
 [
   {
     "name": "docs.sensu.io",
@@ -227,7 +231,7 @@ In the next lesson, we'll act on these events by creating a pipeline.
 
 ---
 
-## Lesson \#2: Create an event pipeline
+## Lesson \#2: Pipe alert events into Slack
 
 Now that we know the sandbox is working properly, let's get to the fun stuff: creating a pipeline.
 In this lesson, we'll create a pipeline to send events to Slack.
@@ -261,7 +265,7 @@ To set up our Slack pipeline, we'll create a handler configuration file that poi
 sudo nano /etc/sensu/conf.d/handlers/slack.json
 ```
 
-```
+```json
 {
   "handlers": {
     "slack": {
@@ -275,21 +279,19 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
 }
 ```
 
-**4. Restart the Sensu server and API:**
-
-We'll need to restart the Sensu server and API whenever making a change to Sensu's JSON configuration files.
+We'll need to restart the Sensu server and API whenever making changes to Sensu's configuration files.
 
 ```
 sudo systemctl restart sensu-{server,api}
 ```
 
-**5. Use the settings API to see our Slack handler:**
+Then we can use the settings API to check that the Slack pipeline is in place:
 
 ```
 curl -s http://localhost:4567/settings | jq .
 ```
 
-```
+```json
 {
   "client": {},
   "sensu": {
@@ -336,7 +338,7 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**6. Send an event to the pipeline:**
+**4. Pipe event data into Slack with the Sensu API**
 
 Let's use the results API to create an event and send it to our pipeline by adding `"handlers": ["slack"]`.
 
@@ -344,7 +346,7 @@ Let's use the results API to create an event and send it to our pipeline by addi
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
-  "name": "check-load-time",
+  "name": "check_curl_timings",
   "output": "Not great. The docs site took 1.721 seconds to load.",
   "status": 1,
   "handlers": ["slack"]
@@ -360,7 +362,7 @@ Let's send another event to resolve the warning:
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
-  "name": "check-load-time",
+  "name": "check_curl_timings",
   "output": "Nice! The docs site took 0.516 seconds to load.",
   "status": 0,
   "handlers": ["slack"]
@@ -368,7 +370,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-**7. Add a filter to the pipeline**
+**5. Add a critical-only filter to the pipeline**
 
 This is great, but let's say we only really want to be notified by Slack when there's a critical alert.
 To do this, we'll create a filter using a JSON configuration file:
@@ -415,13 +417,13 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
 }
 ```
 
-**8. Restart the Sensu server and API:**
+Restart the Sensu server and API:
 
 ```
 sudo systemctl restart sensu-{server,api}
 ```
 
-**9. Use the settings API to see the filter we just created:**
+Then we can use the settings API to see the filter we just created:
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -487,7 +489,7 @@ curl -s http://localhost:4567/settings | jq .
 
 If you don't get a response from the API here, check for invalid JSON in `/etc/sensu/conf.d/handlers/slack.json` and `/etc/sensu/conf.d/filters/only-critical.json`.
 
-**10. Send events to the filtered pipeline**
+**6. Send events to the filtered pipeline**
 
 Now Sensu will only pass critical events through to Slack.
 Let's test it by sending a warning:
@@ -496,7 +498,7 @@ Let's test it by sending a warning:
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
-  "name": "check-load-time",
+  "name": "check_curl_timings",
   "output": "Not great. The docs site took 1.990 seconds to load.",
   "status": 1,
   "handlers": ["slack"]
@@ -512,7 +514,7 @@ Now let's create a critical alert:
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
-  "name": "check-load-time",
+  "name": "check_curl_timings",
   "output": "Something is up. The docs site took 4.272 seconds to load.",
   "status": 2,
   "handlers": ["slack"]
@@ -530,7 +532,7 @@ Before we go, let's create a resolution event.
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
-  "name": "check-load-time",
+  "name": "check_curl_timings",
   "output": "Nice! The docs site took 0.608 seconds to load.",
   "status": 0,
   "handlers": ["slack"]
@@ -716,13 +718,13 @@ sudo nano /etc/sensu/conf.d/client.json
 }
 ```
 
-**4. Restart the Sensu client, server, and API:**
+Restart the Sensu client, server, and API:
 
 ```
 sudo systemctl restart sensu-{client,server,api}
 ```
 
-**5. Use the clients API to make sure the subscription is assigned to the client:**
+Then use the clients API to make sure the subscription is assigned to the client:
 
 ```
 curl -s http://localhost:4567/clients | jq .
@@ -757,10 +759,13 @@ curl -s http://localhost:4567/clients | jq .
 
 If you don't see the new subscription, wait a few seconds and try the settings API again.
 
-**6. Install the Sensu HTTP Plugin to check the load time for docs.sensu.io:**
+**4. Install the Sensu HTTP Plugin to check the load time for docs.sensu.io:**
 
-Now we want to create a check that will automatically check the load time for the docs site in place of us creating events manually using the API.
-To do this, we'll install the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http).
+Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
+Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 
+You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins).
+
+First we'll install the plugin:
 
 ```
 sudo sensu-install -p sensu-plugins-http
@@ -776,25 +781,21 @@ We can test its output using:
 ```
 sensu-core-sandbox.curl_timings.time_total 0.597 1534193106
 sensu-core-sandbox.curl_timings.time_namelookup 0.065 1534193106
-sensu-core-sandbox.curl_timings.time_connect 0.147 1534193106
-sensu-core-sandbox.curl_timings.time_pretransfer 0.418 1534193106
-sensu-core-sandbox.curl_timings.time_redirect 0.000 1534193106
-sensu-core-sandbox.curl_timings.time_starttransfer 0.597 1534193106
-sensu-core-sandbox.curl_timings.http_code 200 1534193106
+...
 ```
 
-**7. Create a check that gets the load time metrics for docs.sensu.io**
+**5. Create a check that gets the load time metrics for docs.sensu.io**
 
 Use a JSON configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription:
 
 ```
-sudo nano /etc/sensu/conf.d/checks/check-load-time.json
+sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
 ```
 
 ```
 {
   "checks": {
-    "check-load-time": {
+    "check_curl_timings": {
       "source": "docs.sensu.io",
       "command": "metrics-curl.rb -u https://docs.sensu.io",
       "interval": 10,
@@ -808,13 +809,13 @@ sudo nano /etc/sensu/conf.d/checks/check-load-time.json
 
 Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
 
-**8. Restart the Sensu client, server, and API**
+Restart the Sensu client, server, and API:
 
 ```
 sudo systemctl restart sensu-{client,server,api}
 ```
 
-**9. Use the settings API to make sure the check has been created:**
+Use the settings API to make sure the check has been created:
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -844,7 +845,7 @@ curl -s http://localhost:4567/settings | jq .
     "reconnect_on_error": true
   },
   "checks": {
-    "check-load-time": {
+    "check_curl_timings": {
       "source": "docs.sensu.io",
       "command": "metrics-curl.rb -u https://docs.sensu.io",
       "interval": 10,
@@ -903,12 +904,12 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**10. See the automated events in [Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients):**
+**6. See the automated events in [Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients):**
 
-**11. Automate CPU usage events for the sandbox**
+**7. Automate CPU usage events for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
-For example, let's say we want to monitor the disk usage on the sandbox.
+For example, let's say we want to monitor disk usage on the sandbox.
 
 First, install the plugin:
 
@@ -925,34 +926,19 @@ And test it:
 ```
 sensu-core-sandbox.disk_usage.root.used 2235 1534191189
 sensu-core-sandbox.disk_usage.root.avail 39714 1534191189
-sensu-core-sandbox.disk_usage.root.used_percentage 6 1534191189
-sensu-core-sandbox.disk_usage.root.dev.used 0 1534191189
-sensu-core-sandbox.disk_usage.root.dev.avail 910 1534191189
-sensu-core-sandbox.disk_usage.root.dev.used_percentage 0 1534191189
-sensu-core-sandbox.disk_usage.root.run.used 9 1534191189
-sensu-core-sandbox.disk_usage.root.run.avail 912 1534191189
-sensu-core-sandbox.disk_usage.root.run.used_percentage 1 1534191189
-sensu-core-sandbox.disk_usage.root.home.used 33 1534191189
-sensu-core-sandbox.disk_usage.root.home.avail 20446 1534191189
-sensu-core-sandbox.disk_usage.root.home.used_percentage 1 1534191189
-sensu-core-sandbox.disk_usage.root.boot.used 171 1534191189
-sensu-core-sandbox.disk_usage.root.boot.avail 844 1534191189
-sensu-core-sandbox.disk_usage.root.boot.used_percentage 17 1534191189
-sensu-core-sandbox.disk_usage.root.vagrant.used 51087 1534191189
-sensu-core-sandbox.disk_usage.root.vagrant.avail 425716 1534191189
-sensu-core-sandbox.disk_usage.root.vagrant.used_percentage 11 1534191189
+...
 ```
 
 Then create the check using a JSON configuration file, assigning it to the `sandbox-testing` subscription and the `graphite_tcp` pipeline:
 
 ```
-sudo nano /etc/sensu/conf.d/checks/check-disk-usage.json
+sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
 ```
 
 ```
 {
   "checks": {
-    "check-disk-usage": {
+    "check_disk_usage": {
       "command": "/opt/sensu/embedded/bin/metrics-disk-usage.rb",
       "interval": 10,
       "subscribers": ["sandbox-testing"],
@@ -999,7 +985,7 @@ curl -s http://localhost:4567/settings | jq .
     "reconnect_on_error": true
   },
   "checks": {
-    "check-load-time": {
+    "check_curl_timings": {
       "source": "docs.sensu.io",
       "command": "metrics-curl.rb -u https://docs.sensu.io",
       "interval": 10,
@@ -1011,7 +997,7 @@ curl -s http://localhost:4567/settings | jq .
         "graphite_tcp"
       ]
     },
-    "check-disk-usage": {
+    "check_disk_usage": {
       "command": "/opt/sensu/embedded/bin/metrics-disk-usage.rb",
       "interval": 10,
       "subscribers": [

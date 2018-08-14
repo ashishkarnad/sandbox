@@ -4,7 +4,7 @@ This tutorial will get you up and running with Sensu Enterprise.
 
 - [Set up the sandbox](#set-up-the-sandbox)
 - [Lesson \#1: Create a monitoring event](#lesson-1-create-a-monitoring-event)
-- [Lesson \#2: Create an event pipeline](#lesson-2-create-an-event-pipeline)
+- [Lesson \#2: Create an event pipeline](#lesson-2-pipe-metric-events-into-graphite)
 - [Lesson \#3: Automate event production with the Sensu client](#lesson-3-automate-event-production-with-the-sensu-client)
 
 We'd love to hear your feedback!
@@ -208,13 +208,12 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "name": "docs.sensu.io",
   "address": "unknown",
-  "environment": "production",
   "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage"
 }' \
 http://localhost:4567/clients
 ```
 
-We can see the new `environment` and `playbook` attributes in the [dashboard client view](http://localhost:3000/#/clients) or using the clients API:
+We can see the new `playbook` attribute in the [dashboard client view](http://localhost:3000/#/clients) or using the clients API:
 
 ```
 curl -s http://localhost:4567/clients | jq .
@@ -225,7 +224,6 @@ curl -s http://localhost:4567/clients | jq .
   {
     "name": "docs.sensu.io",
     "address": "unknown",
-    "environment": "production",
     "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
     "keepalives": false,
     "version": "1.4.3",
@@ -242,7 +240,7 @@ In the next lesson, we'll take action on these events by creating a pipeline.
 
 ---
 
-## Lesson \#2: Pipe events into Graphite
+## Lesson \#2: Pipe metric events into Graphite
 
 Now that we know the sandbox is working properly, let's get to the fun stuff: creating a pipeline.
 In this lesson, we'll create a pipeline to send event data to [Graphite](http://graphite.readthedocs.io/en/latest/).
@@ -374,6 +372,8 @@ http://localhost:4567/results && sleep 10s && curl -s -XPOST -H 'Content-Type: a
 http://localhost:4567/results
 ```
 
+Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
+
 After a few seconds, we'll be able to see the [event data in Graphite](http://172.28.128.3/?width=586&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) under Metrics/sensu-enterprise-sandbox/curl_timings/time_total.
 
 (Not seeing anything? Try enabling Auto-Refresh and adjusting the time view to the last 10 minutes.)
@@ -497,6 +497,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
   "name": "check_curl_timings",
   "output": "sensu-enterprise-sandbox.curl_timings.time_total 1.762 '`date +%s`'",
   "status": 1,
+  "type": "metric",
   "environment": "development",
   "handlers": [
     "graphite"
@@ -516,6 +517,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
   "name": "check_curl_timings",
   "output": "sensu-enterprise-sandbox.curl_timings.time_total 2.051 '`date +%s`'",
   "status": 1,
+  "type": "metric",
   "environment": "production",
   "handlers": [
     "graphite"
@@ -534,6 +536,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
   "name": "check_curl_timings",
   "output": "sensu-enterprise-sandbox.curl_timings.time_total 0.672 '`date +%s`'",
   "status": 0,
+  "type": "metric",
   "environment": "development",
   "handlers": [
     "graphite"
@@ -568,7 +571,6 @@ curl -s http://localhost:4567/clients | jq .
   {
     "name": "docs.sensu.io",
     "address": "unknown",
-    "environment": "production",
     "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
     "keepalives": false,
     "version": "1.4.3",
@@ -629,7 +631,6 @@ curl -s http://localhost:4567/clients | jq .
   {
     "name": "docs.sensu.io",
     "address": "unknown",
-    "environment": "production",
     "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
     "keepalives": false,
     "version": "1.4.3",
@@ -698,8 +699,6 @@ sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
   }
 }
 ```
-
-Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
 
 Reload Sensu Enterprise, and restart the Sensu client.
 
