@@ -488,7 +488,7 @@ curl -s http://localhost:4567/settings | jq .
 **4. Send events to the filtered pipeline**
 
 Now any events we create must include `"environment": "production"` in order to be handled by the Graphite pipeline.
-Let's test it out by creating an event from our hypothetical development site attribute:
+Let's test it out by creating an event from our hypothetical development site:
 
 ```
 curl -s -XPOST -H 'Content-Type: application/json' \
@@ -524,7 +524,8 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-Make sure it appears in Graphite and send a resolution event:
+We should see it appear in Graphite.
+Then we can send a resolution event:
 
 ```
 curl -s -XPOST -H 'Content-Type: application/json' \
@@ -547,7 +548,7 @@ In the next lesson, we'll tap into the power of Sensu by adding a Sensu client t
 ---
 
 ## Lesson \#3: Automate event production with the Sensu client
-So far we've used only the Sensu server and API, but in this lesson, we'll add the Sensu client start producing events automatically.
+So far we've used only the Sensu server and API, but in this lesson, we'll add the Sensu client and start producing events automatically.
 
 **1. Install and start the Sensu client:**
 
@@ -591,7 +592,7 @@ curl -s http://localhost:4567/clients | jq .
 In the [dashboard client view](http://172.28.128.3:3000/#/clients), note that the sandbox client running in the sandbox executes keepalive checks while the docs.sensu.io proxy client cannot.
 
 _NOTE: The sandbox client gets its name from the `sensu.name` attributed configured as part of sandbox setup.
-You can change the client name using `sudo nano /etc/sensu/dashboard.json`_
+You can change the client name using `sudo nano /etc/sensu/dashboard.json`._
 
 **2. Add a client subscription**
 
@@ -651,7 +652,8 @@ curl -s http://localhost:4567/clients | jq .
 ```
 
 **5. Install the Sensu HTTP Plugin**
-Up until now we've been using random curl times for docs.sensu.io, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to run the check for us.
+
+Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 
 You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins).
 
@@ -677,9 +679,9 @@ sensu-enterprise-sandbox.curl_timings.time_starttransfer 0.635 1534190765
 sensu-enterprise-sandbox.curl_timings.http_code 200 1534190765
 ```
 
-**6. Create a check that creates curl timing events for docs.sensu.io**
+**6. Create a check that produces curl timing events for docs.sensu.io**
 
-Use a JSON configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription:
+Use a configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
@@ -791,7 +793,7 @@ curl -s http://localhost:4567/settings | jq .
 
 **7. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients)**
 
-**8. Automate CPU usage events for the sandbox**
+**8. Automate disk usage monitoring for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
 For example, let's say we want to monitor disk usage on the sandbox.
