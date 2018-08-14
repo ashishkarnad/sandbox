@@ -21,12 +21,16 @@ While this sandbox is internal to Sensu, please add feedback to this [GoogleDoc]
 
 **2. Download the sandbox:**
 
-[Download from GitHub](https://github.com/sensu/sandbox/archive/master.zip) or clone the repository:
+[Download from GitHub](https://github.com/sensu/sandbox/archive/v1-wip.zip) or clone the repository:
 
 ```
-git clone https://github.com/sensu/sandbox
+git clone git@github.com:sensu/sandbox.git
 cd sandbox
+git checkout v1-wip
 ```
+
+If you downloaded the zip file from GitHub, unzip the folder and move it into your Documents folder.
+Then open Terminal and enter `cd Documents` followed by `cd sandbox-1-wip`.
 
 **3. Add your Sensu Enterprise username and password**
 
