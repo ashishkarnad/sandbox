@@ -140,7 +140,7 @@ Event data contains information about the part of your system the event came fro
 This event's data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
 We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
 
-```
+```json
 [
   {
     "id": "188add2a-66aa-4fd8-aeed-bd16775e5f2d",
@@ -220,7 +220,7 @@ We can see the new `environment` and `playbook` attributes in the [dashboard cli
 curl -s http://localhost:4567/clients | jq .
 ```
 
-```
+```json
 [
   {
     "name": "docs.sensu.io",
@@ -256,7 +256,7 @@ Since we've already installed Graphite as part of the sandbox, all we need to do
 sudo nano /etc/sensu/conf.d/handlers/graphite.json
 ```
 
-```
+```json
 {
   "graphite": {
     "host": "127.0.0.1",
@@ -277,7 +277,7 @@ Then we can use the settings API to check that the Graphite pipeline is in place
 curl -s http://localhost:4567/settings | jq .
 ```
 
-```
+```json
 {
   "client": {},
   "sensu": {
@@ -387,7 +387,7 @@ To do this, we'll add a filter to our Graphite pipeline by creating a configurat
 sudo nano /etc/sensu/conf.d/filters/only_production.json
 ```
 
-```
+```json
 {
   "filters": {
     "only_production": {
@@ -409,7 +409,7 @@ Now we'll hook up the `only_production` filter to the `graphite` handler by addi
 sudo nano /etc/sensu/conf.d/handlers/graphite.json
 ```
 
-```
+```json
 {
   "graphite": {
     "filters": ["only_production"],
@@ -431,7 +431,7 @@ Then use the settings API to see the only_production filter:
 curl -s http://localhost:4567/settings | jq .
 ```
 
-```
+```json
 {
   "client": {},
   "sensu": {
@@ -563,7 +563,7 @@ We can see the client start up using the clients API:
 curl -s http://localhost:4567/clients | jq .
 ```
 
-```
+```json
 [
   {
     "name": "docs.sensu.io",
@@ -603,7 +603,7 @@ Create a configuration file to assign our new client to run checks with the `san
 sudo nano /etc/sensu/conf.d/client.json
 ```
 
-```
+```json
 {
   "client": {
     "name": "sensu-enterprise-sandbox",
@@ -624,7 +624,7 @@ Then use the clients API to make sure the subscription is assigned to the client
 curl -s http://localhost:4567/clients | jq .
 ```
 
-```
+```json
 [
   {
     "name": "docs.sensu.io",
@@ -672,11 +672,7 @@ We can test its output using:
 ```
 sensu-enterprise-sandbox.curl_timings.time_total 0.635 1534190765
 sensu-enterprise-sandbox.curl_timings.time_namelookup 0.069 1534190765
-sensu-enterprise-sandbox.curl_timings.time_connect 0.150 1534190765
-sensu-enterprise-sandbox.curl_timings.time_pretransfer 0.448 1534190765
-sensu-enterprise-sandbox.curl_timings.time_redirect 0.000 1534190765
-sensu-enterprise-sandbox.curl_timings.time_starttransfer 0.635 1534190765
-sensu-enterprise-sandbox.curl_timings.http_code 200 1534190765
+...
 ```
 
 **6. Create a check that produces curl timing events for docs.sensu.io**
@@ -687,7 +683,7 @@ Use a configuration file to create a check that runs `metrics-curl.rb` every 10 
 sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
 ```
 
-```
+```json
 {
   "checks": {
     "check_curl_timings": {
@@ -718,7 +714,7 @@ Then use the settings API to make sure the check has been created:
 curl -s http://localhost:4567/settings | jq .
 ```
 
-```
+```json
 {
   "client": {
     "name": "sensu-enterprise-sandbox",
@@ -813,22 +809,7 @@ And test it:
 ```
 sensu-enterprise-sandbox.disk_usage.root.used 2235 1534191189
 sensu-enterprise-sandbox.disk_usage.root.avail 39714 1534191189
-sensu-enterprise-sandbox.disk_usage.root.used_percentage 6 1534191189
-sensu-enterprise-sandbox.disk_usage.root.dev.used 0 1534191189
-sensu-enterprise-sandbox.disk_usage.root.dev.avail 910 1534191189
-sensu-enterprise-sandbox.disk_usage.root.dev.used_percentage 0 1534191189
-sensu-enterprise-sandbox.disk_usage.root.run.used 9 1534191189
-sensu-enterprise-sandbox.disk_usage.root.run.avail 912 1534191189
-sensu-enterprise-sandbox.disk_usage.root.run.used_percentage 1 1534191189
-sensu-enterprise-sandbox.disk_usage.root.home.used 33 1534191189
-sensu-enterprise-sandbox.disk_usage.root.home.avail 20446 1534191189
-sensu-enterprise-sandbox.disk_usage.root.home.used_percentage 1 1534191189
-sensu-enterprise-sandbox.disk_usage.root.boot.used 171 1534191189
-sensu-enterprise-sandbox.disk_usage.root.boot.avail 844 1534191189
-sensu-enterprise-sandbox.disk_usage.root.boot.used_percentage 17 1534191189
-sensu-enterprise-sandbox.disk_usage.root.vagrant.used 51087 1534191189
-sensu-enterprise-sandbox.disk_usage.root.vagrant.avail 425716 1534191189
-sensu-enterprise-sandbox.disk_usage.root.vagrant.used_percentage 11 1534191189
+...
 ```
 
 Then create a disk usage check using a configuration file, assigning it to the `sandbox-testing` subscription and the `graphite` pipeline:
@@ -837,7 +818,7 @@ Then create a disk usage check using a configuration file, assigning it to the `
 sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
 ```
 
-```
+```json
 {
   "checks": {
     "check_disk_usage": {
