@@ -204,7 +204,7 @@ This time, use the clients API to create an event that gives Sensu some extra in
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "name": "docs.sensu.io",
-  "address": "unknown",
+  "address": "https://docs.sensu.io",
   "environment": "production",
   "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage"
 }' \
@@ -221,12 +221,12 @@ curl -s http://localhost:4567/clients | jq .
 [
   {
     "name": "docs.sensu.io",
-    "address": "unknown",
+    "address": "https://docs.sensu.io",
     "environment": "production",
     "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
     "keepalives": false,
     "version": "1.4.3",
-    "timestamp": 1533924570,
+    "timestamp": 1534284314,
     "subscriptions": [
       "client:docs.sensu.io"
     ]
@@ -381,16 +381,16 @@ http://localhost:4567/results
 **5. Add a critical-only filter to the pipeline**
 
 This is great, but let's say we only really want to be notified by Slack when there's a critical alert.
-To do this, we'll create a filter using a JSON configuration file:
+To do this, we'll create a filter using a configuration file:
 
 ```
-sudo nano /etc/sensu/conf.d/filters/only-critical.json
+sudo nano /etc/sensu/conf.d/filters/only_critical.json
 ```
 
 ```
 {
   "filters": {
-    "only-critical": {
+    "only_critical": {
       "attributes": {
         "check": {
           "status": 2
@@ -404,7 +404,7 @@ sudo nano /etc/sensu/conf.d/filters/only-critical.json
 This tells Sensu to check the event data (within the `check` scope) and only allow events with `"status": 2` to continue through the pipeline.
 
 But we're not done yet.
-Now we need to hook up the `only-critical` filter to the pipeline by adding `"filters": ["only-critical"]` to the `slack.json` handler configuration.
+Now we need to hook up the `only_critical` filter to the pipeline by adding `"filters": ["only_critical"]` to the `slack.json` handler configuration.
 
 ```
 sudo nano /etc/sensu/conf.d/handlers/slack.json
@@ -414,8 +414,8 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
 {
   "handlers": {
     "slack": {
+      "filters": ["only_critical"],
       "type": "pipe",
-      "filters": ["only-critical"],
       "command": "handler-slack.rb"
     }
   },
@@ -457,7 +457,7 @@ curl -s http://localhost:4567/settings | jq .
   },
   "checks": {},
   "filters": {
-    "only-critical": {
+    "only_critical": {
       "attributes": {
         "check": {
           "status": 2
@@ -468,10 +468,10 @@ curl -s http://localhost:4567/settings | jq .
   "mutators": {},
   "handlers": {
     "slack": {
-      "type": "pipe",
         "filters": [
-          "only-critical"
+          "only_critical"
         ],
+        "type": "pipe",
         "command": "handler-slack.rb"
     }
   },
@@ -495,7 +495,7 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-If you don't get a response from the API here, check for invalid JSON in `/etc/sensu/conf.d/handlers/slack.json` and `/etc/sensu/conf.d/filters/only-critical.json`.
+If you don't get a response from the API here, check for invalid JSON in `/etc/sensu/conf.d/handlers/slack.json` and `/etc/sensu/conf.d/filters/only_critical.json`.
 
 **6. Send events to the filtered pipeline**
 
@@ -555,32 +555,26 @@ In the next lesson, we'll tap into the power of Sensu by adding a Sensu client t
 
 ## Lesson \#3: Automate event production with the Sensu client
 So far we've used only the Sensu server and API, but in this lesson, we'll add the Sensu client and create a check to produce events automatically.
-Instead of using Slack, we'll use [Graphite](http://graphite.readthedocs.io/en/latest/) to store event data.
+Instead of to Slack, we'll be using [Graphite](http://graphite.readthedocs.io/en/latest/) to store event data.
 
 **1. Create a Graphite pipeline**
 
-This is review from the last lesson.
-First, we'll install the Sensu Graphite Plugin:
+Since we've already installed Graphite as part of the sandbox, all we need to do to create a Graphite pipeline is create a configuration file:
 
 ```
-sudo sensu-install -p sensu-plugins-graphite
-```
-
-Then we'll create the pipeline using a handler configuration file:
-
-```
-sudo nano /etc/sensu/conf.d/handlers/graphite_tcp.json
+sudo nano /etc/sensu/conf.d/handlers/graphite.json
 ```
 
 ```
 {
   "handlers": {
-    "graphite_tcp": {
+    "graphite": {
       "type": "tcp",
       "socket": {
         "host":"127.0.0.1",
         "port":2003
-      }
+      },
+      "mutator": "only_check_output"
     }
   }
 }
@@ -618,7 +612,7 @@ curl -s http://localhost:4567/settings | jq .
   },
   "checks": {},
   "filters": {
-    "only-critical": {
+    "only_critical": {
       "attributes": {
         "check": {
           "status": 2
@@ -631,16 +625,17 @@ curl -s http://localhost:4567/settings | jq .
     "slack": {
       "type": "pipe",
       "filters": [
-        "only-critical"
+        "only_critical"
       ],
       "command": "handler-slack.rb"
     },
-    "graphite_tcp": {
+    "graphite": {
       "type": "tcp",
       "socket": {
         "host": "127.0.0.1",
         "port": 2003
-      }
+      },
+      "mutator": "only_check_output"
     }
   },
   "extensions": {},
@@ -680,25 +675,25 @@ curl -s http://localhost:4567/clients | jq .
 ```
 [
   {
+    "name": "docs.sensu.io",
+    "address": "https://docs.sensu.io",
+    "environment": "production",
+    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
+    "keepalives": false,
+    "version": "1.4.3",
+    "timestamp": 1534284314,
+    "subscriptions": [
+      "client:docs.sensu.io"
+    ]
+  },
+  {
     "name": "sensu-core-sandbox",
     "address": "10.0.2.15",
     "subscriptions": [
       "client:sensu-core-sandbox"
     ],
     "version": "1.4.3",
-    "timestamp": 1534100148
-  },
-  {
-    "name": "docs.sensu.io",
-    "address": "unknown",
-    "environment": "production",
-    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
-    "keepalives": false,
-    "version": "1.4.3",
-    "timestamp": 1534098558,
-    "subscriptions": [
-      "client:docs.sensu.io"
-    ]
+    "timestamp": 1534284788
   }
 ]
 ```
@@ -741,6 +736,18 @@ curl -s http://localhost:4567/clients | jq .
 ```
 [
   {
+    "name": "docs.sensu.io",
+    "address": "https://docs.sensu.io",
+    "environment": "production",
+    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
+    "keepalives": false,
+    "version": "1.4.3",
+    "timestamp": 1534284314,
+    "subscriptions": [
+      "client:docs.sensu.io"
+    ]
+  },
+  {
     "name": "sensu-core-sandbox",
     "address": "10.0.2.15",
     "subscriptions": [
@@ -748,19 +755,7 @@ curl -s http://localhost:4567/clients | jq .
       "client:sensu-core-sandbox"
     ],
     "version": "1.4.3",
-    "timestamp": 1534100148
-  },
-  {
-    "name": "docs.sensu.io",
-    "address": "unknown",
-    "environment": "production",
-    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
-    "keepalives": false,
-    "version": "1.4.3",
-    "timestamp": 1534098558,
-    "subscriptions": [
-      "client:docs.sensu.io"
-    ]
+    "timestamp": 1534284858
   }
 ]
 ```
@@ -794,7 +789,7 @@ sensu-core-sandbox.curl_timings.time_namelookup 0.065 1534193106
 
 **5. Create a check that gets the load time metrics for docs.sensu.io**
 
-Use a JSON configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription:
+Use a JSON configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the Graphite pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
@@ -809,7 +804,7 @@ sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
       "interval": 10,
       "subscribers": ["sandbox-testing"],
       "type": "metric",
-      "handlers": ["graphite_tcp"]
+      "handlers": ["graphite"]
     }
   }
 }
@@ -862,12 +857,12 @@ curl -s http://localhost:4567/settings | jq .
       ],
       "type": "metric",
       "handlers": [
-        "graphite_tcp"
+        "graphite"
       ]
     }
   },
   "filters": {
-    "only-critical": {
+    "only_critical": {
       "attributes": {
         "check": {
           "status": 2
@@ -880,16 +875,17 @@ curl -s http://localhost:4567/settings | jq .
     "slack": {
       "type": "pipe",
       "filters": [
-        "only-critical"
+        "only_critical"
       ],
       "command": "handler-slack.rb"
     },
-    "graphite_tcp": {
+    "graphite": {
       "type": "tcp",
       "socket": {
         "host": "127.0.0.1",
         "port": 2003
-      }
+      },
+      "mutator": "only_check_output"
     }
   },
   "extensions": {},
@@ -912,9 +908,11 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**6. See the automated events in [Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.3:3000/#/clients):**
+**6. See the automated events in [Graphite](http://172.28.128.3/?from=-10minutes&showTarget=sensu-core-sandbox.curl_timings.time_total&target=sensu-core-sandbox.curl_timings.time_total) and the [dashboard client view](http://172.28.128.3:3000/#/clients):**
 
-**7. Automate CPU usage events for the sandbox**
+Make sure to enable auto-refresh.
+
+**7. Automate CPU usage metrics for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
 For example, let's say we want to monitor disk usage on the sandbox.
@@ -951,7 +949,7 @@ sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
       "interval": 10,
       "subscribers": ["sandbox-testing"],
       "type": "metric",
-      "handlers": ["graphite_tcp"]
+      "handlers": ["graphite"]
     }
   }
 }
@@ -1002,7 +1000,7 @@ curl -s http://localhost:4567/settings | jq .
       ],
       "type": "metric",
       "handlers": [
-        "graphite_tcp"
+        "graphite"
       ]
     },
     "check_disk_usage": {
@@ -1018,7 +1016,7 @@ curl -s http://localhost:4567/settings | jq .
     }
   },
   "filters": {
-    "only-critical": {
+    "only_critical": {
       "attributes": {
         "check": {
           "status": 2
@@ -1032,10 +1030,10 @@ curl -s http://localhost:4567/settings | jq .
       "type": "pipe",
       "command": "handler-slack.rb",
       "filters": [
-        "only-critical"
+        "only_critical"
       ]
     },
-    "graphite_tcp": {
+    "graphite": {
       "type": "tcp",
       "socket": {
         "host": "127.0.0.1",
