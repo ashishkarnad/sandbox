@@ -137,7 +137,7 @@ _NOTE: The events API returns only warning (`"status": 1`) and critical (`"statu
 
 Event data contains information about the part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
 
-This event data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
+This event's data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
 We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
 
 ```
@@ -182,7 +182,7 @@ We can also see the alert and the client in the [dashboard event view](http://17
 ```
 
 We created our first event!
-Now let's resolve it by creating another event to represent the docs site loading quickly again:
+Now let's remove the warning from the dashboard by creating a resolution event:
 
 ```
 curl -s -XPOST -H 'Content-Type: application/json' \
@@ -265,8 +265,6 @@ sudo nano /etc/sensu/conf.d/handlers/graphite.json
 }
 ```
 
-**2. Restart Sensu Enterprise and confirm**
-
 We'll need to restart Sensu Enterprise whenever making changes to Sensu's configuration files.
 
 ```
@@ -322,7 +320,7 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**3. Send an event to the pipeline**
+**2. Pipe event data into Graphite with the Sensu API**
 
 Let's use the results API to create a few events that represent varying curl times for the docs site and assign them to the Graphite pipeline by adding `"handlers": ["graphite"]`.
 
@@ -380,7 +378,7 @@ After a few seconds, we'll be able to see the [event data in Graphite](http://17
 
 (Not seeing anything? Try enabling Auto-Refresh and adjusting the time view to the last 10 minutes.)
 
-**4. Add a filter to the pipeline**
+**3. Add a production-only filter to the pipeline**
 
 Let's say we've set up a development instance of docs.sensu.io that we also want to monitor, but we only want our Graphite graph to contain data from production.
 To do this, we'll add a filter to our Graphite pipeline by creating a configuration file:
@@ -421,7 +419,7 @@ sudo nano /etc/sensu/conf.d/handlers/graphite.json
 }
 ```
 
-**5. Restart Sensu Enteprise and confirm**
+Restart Sensu Enteprise:
 
 ```
 sudo systemctl reload sensu-enterprise
@@ -487,7 +485,7 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**6. Send events to the filtered pipeline**
+**4. Send events to the filtered pipeline**
 
 Now any events we create must include `"environment": "production"` in order to be handled by the Graphite pipeline.
 Let's test it out by creating an event from our hypothetical development site attribute:
@@ -613,7 +611,7 @@ sudo nano /etc/sensu/conf.d/client.json
 }
 ```
 
-**3. Restart the Sensu client and confirm**
+Restart the Sensu client:
 
 ```
 sudo systemctl restart sensu-client
@@ -705,14 +703,14 @@ sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
 
 Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
 
-**7. Reload Sensu Enterprise, restart the Sensu client, and confirm**
+Reload Sensu Enterprise, and restart the Sensu client.
 
 ```
 sudo systemctl reload sensu-enterprise
 sudo systemctl restart sensu-client
 ```
 
-Then the settings API to make sure the check has been created:
+Then use the settings API to make sure the check has been created:
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -791,9 +789,9 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**9. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients)**
+**7. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients)**
 
-**10. Automate CPU usage events for the sandbox**
+**8. Automate CPU usage events for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
 For example, let's say we want to monitor disk usage on the sandbox.
