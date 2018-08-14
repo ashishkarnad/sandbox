@@ -4,7 +4,7 @@ This tutorial will get you up and running with Sensu Enterprise.
 
 - [Set up the sandbox](#set-up-the-sandbox)
 - [Lesson \#1: Create a monitoring event](#lesson-1-create-a-monitoring-event)
-- [Lesson \#2: Create an event pipeline](#lesson-2-pipe-metric-events-into-graphite)
+- [Lesson \#2: Create an event pipeline](#lesson-2-pipe-events-into-graphite)
 - [Lesson \#3: Automate event production with the Sensu client](#lesson-3-automate-event-production-with-the-sensu-client)
 
 We'd love to hear your feedback!
@@ -244,7 +244,7 @@ In the next lesson, we'll take action on these events by creating a pipeline.
 
 ---
 
-## Lesson \#2: Pipe metric events into Graphite
+## Lesson \#2: Pipe events into Graphite
 
 Now that we know the sandbox is working properly, let's get to the fun stuff: creating a pipeline.
 In this lesson, we'll create a pipeline to send event data to [Graphite](http://graphite.readthedocs.io/en/latest/).
