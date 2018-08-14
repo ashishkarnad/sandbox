@@ -114,7 +114,7 @@ We can see a lot of this same information in the [dashboard datacenter view](htt
 
 **2. Create an event that warns us that docs.sensu.io is loading slowly (and resolve it)**
 
-Let's say we have an application that can curl the Sensu docs site and output a string with the response time.
+Let's say we have an application that can test the Sensu docs site and output a string with the response time.
 We can use the results API to create an event that represents a warning from our pseudo-app that the docs site is getting slow.
 
 ```

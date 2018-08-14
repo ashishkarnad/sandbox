@@ -62,6 +62,8 @@ curl -s http://localhost:4567/settings | jq .
 With our sandbox server, we can see that we have no active clients, and that Sensu is using RabbitMQ as the transport and Redis as the datastore.
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
 
+It should look something like this:
+
 ```json
 {
   "client": {},
@@ -103,7 +105,7 @@ We can see a lot of this same information in the [dashboard datacenter view](htt
 
 **2. Create an event that warns us that docs.sensu.io is loading slowly (and resolve it)**
 
-Let's say we have an application that can curl the Sensu docs site and output a string with the response time.
+Let's say we have an application that can test the Sensu docs site and output a string with the response time.
 We can use the results API to create an event that represents a warning from our pseudo-app that the docs site is getting slow.
 
 ```
@@ -130,8 +132,10 @@ _NOTE: The events API returns only warning (`"status": 1`) and critical (`"statu
 
 Event data contains information about the part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
 
-This event's data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
+In this example, the event data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
 We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
+
+It should look something like this:
 
 ```json
 [
@@ -175,7 +179,7 @@ We can also see the alert and the client in the [dashboard event view](http://17
 ```
 
 We created our first event!
-Now let's resolve it by creating another event to represent the docs site loading quickly again:
+Now let's remove the warning from the dashboard by creating a resolution event:
 
 ```
 curl -s -XPOST -H 'Content-Type: application/json' \
@@ -188,11 +192,11 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-In the [dashboard client view](http://localhost:3000/#/clients), we can see that there are no active alerts and that the client is healthy.
+In the [dashboard client view](http://172.28.128.3:3000/#/clients), we can see that there are no active alerts and that the client is healthy.
 
 _NOTE: The dashboard auto-refreshes every 10 seconds._
 
-**4. Provide context about the systems you're monitoring with a discovery event**
+**4. Provide context about the systems we're monitoring with a discovery event**
 
 This time, use the clients API to create an event that gives Sensu some extra information about docs.sensu.io:
 
@@ -207,7 +211,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/clients
 ```
 
-You can see the new `environment` and `playbook` attributes in the [dashboard client view](http://localhost:3000/#/clients) or using the clients API:
+You can see the new `environment` and `playbook` attributes in the [dashboard client view](http://172.28.128.3:3000/#/clients) or using the clients API:
 
 ```
 curl -s http://localhost:4567/clients | jq .
@@ -908,7 +912,7 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**6. See the automated events in [Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients):**
+**6. See the automated events in [Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.3:3000/#/clients):**
 
 **7. Automate CPU usage events for the sandbox**
 
