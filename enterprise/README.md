@@ -24,9 +24,7 @@ While this sandbox is internal to Sensu, please add feedback to this [GoogleDoc]
 [Download from GitHub](https://github.com/sensu/sandbox/archive/v1-wip.zip) or clone the repository:
 
 ```
-git clone git@github.com:sensu/sandbox.git
-cd sandbox
-git checkout v1-wip
+git clone git@github.com:sensu/sandbox.git && cd sandbox && git checkout v1-wip
 ```
 
 If you downloaded the zip file from GitHub, unzip the folder and move it into your Documents folder.
@@ -39,9 +37,7 @@ Then open Terminal and enter `cd Documents` followed by `cd sandbox-1-wip`.
 Then add your Sensu Enterprise username and password to the sandbox:
 
 ```
-cd enterprise
-export SE_USER=REPLACEME
-export SE_PASS=REPLACEME
+cd enterprise && export SE_USER=REPLACEME && export SE_PASS=REPLACEME
 ```
 
 **4. Start Vagrant:**
@@ -396,8 +392,7 @@ So far we've used only the Sensu server and API, but in this lesson, we'll add t
 **1. Install and start the Sensu client:**
 
 ```
-sudo yum install -y sensu
-sudo systemctl start sensu-client
+sudo yum install -y sensu && sudo systemctl start sensu-client
 ```
 
 We can see the client start up using the clients API:
@@ -545,8 +540,7 @@ sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
 Reload Sensu Enterprise, and restart the Sensu client.
 
 ```
-sudo systemctl reload sensu-enterprise
-sudo systemctl restart sensu-client
+sudo systemctl reload sensu-enterprise && sudo systemctl restart sensu-client
 ```
 
 Then use the settings API to make sure the check has been created:
@@ -627,8 +621,7 @@ sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
 Finally, restart all the things:
 
 ```
-sudo systemctl reload sensu-enterprise
-sudo systemctl restart sensu-client
+sudo systemctl reload sensu-enterprise && sudo systemctl restart sensu-client
 ```
 
 Now we should be able to see disk usage metrics in Graphite in addition to the docs site load times.

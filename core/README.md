@@ -555,7 +555,6 @@ curl -s http://localhost:4567/settings | jq .
 ```
 {
 ...
-  "mutators": {},
   "handlers": {
     "slack": {
       "filters": [
