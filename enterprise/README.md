@@ -494,7 +494,7 @@ $ curl -s http://localhost:4567/clients | jq .
 ]
 ```
 
-**5. Install the Sensu HTTP Plugin**
+**3. Install the Sensu HTTP Plugin**
 
 Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 
@@ -518,7 +518,7 @@ sensu-enterprise-sandbox.curl_timings.time_namelookup 0.069 1534190765
 ...
 ```
 
-**6. Create a check that produces curl timing events for docs.sensu.io**
+**4. Create a check that produces curl timing events for docs.sensu.io**
 
 Use a configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription:
 
@@ -578,9 +578,9 @@ $ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**7. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients)**
+**5. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients)**
 
-**8. Automate disk usage monitoring for the sandbox**
+**6. Automate disk usage monitoring for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
 For example, let's say we want to monitor disk usage on the sandbox.

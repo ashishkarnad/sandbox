@@ -196,7 +196,7 @@ After a few seconds, we can check the [dashboard client view](http://172.28.128.
 
 _NOTE: The dashboard auto-refreshes every 10 seconds._
 
-**4. Create a discovery event to provide context about the systems we're monitoring**
+**3. Create a discovery event to provide context about the systems we're monitoring**
 
 This time, use the clients API to create an event that gives Sensu some extra information about docs.sensu.io:
 
