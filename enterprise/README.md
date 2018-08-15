@@ -489,9 +489,9 @@ $ curl -s http://localhost:4567/clients | jq .
 ]
 ```
 
-**3. Install the Sensu HTTP Plugin to monitor docs.sensu.io**
+**3. Install the Sensu HTTP Plugins to monitor docs.sensu.io**
 
-Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
+Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugins](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 
 You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins).
 
@@ -508,6 +508,7 @@ We can test its output using:
 ```
 
 ```
+$ /opt/sensu/embedded/bin/metrics-curl.rb -u https://docs.sensu.io
 sensu-enterprise-sandbox.curl_timings.time_total 0.635 1534190765
 sensu-enterprise-sandbox.curl_timings.time_namelookup 0.069 1534190765
 ...
@@ -552,7 +553,7 @@ curl -s http://localhost:4567/settings | jq .
 ```json
 $ curl -s http://localhost:4567/settings | jq .
 {
-
+...
   "checks": {
     "check_curl_timings": {
       "source": "docs.sensu.io",
@@ -568,7 +569,7 @@ $ curl -s http://localhost:4567/settings | jq .
       ]
     }
   },
-
+...
 }
 ```
 
@@ -592,6 +593,7 @@ And test it:
 ```
 
 ```
+$ /opt/sensu/embedded/bin/metrics-disk-usage.rb
 sensu-enterprise-sandbox.disk_usage.root.used 2235 1534191189
 sensu-enterprise-sandbox.disk_usage.root.avail 39714 1534191189
 ...

@@ -218,6 +218,7 @@ curl -s http://localhost:4567/clients | jq .
 ```
 
 ```json
+$ curl -s http://localhost:4567/clients | jq .
 [
   {
     "name": "docs.sensu.io",
@@ -245,10 +246,10 @@ Now that we know the sandbox is working properly, let's get to the fun stuff: cr
 In this lesson, we'll create a pipeline to send alerts to Slack.
 (If you'd rather not create a Slack account, you can skip ahead to [lesson 3](#lesson-3-automate-event-production-with-the-sensu-client).)
 
-**1. Install the Sensu Slack plugin**
+**1. Install the Sensu Slack Plugins**
 
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community.
-In this lesson, we'll use the [Sensu Slack plugins](https://github.com/sensu-plugins/sensu-plugins-slack) to create our pipeline.
+In this lesson, we'll use the [Sensu Slack Plugins](https://github.com/sensu-plugins/sensu-plugins-slack) to create our pipeline.
 You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins), or check out [Sensu Enterprise's built-in integrations](https://docs.sensu.io/sensu-enterprise/3.1/built-in-handlers).
 
 First we'll need to install the plugins:
@@ -259,7 +260,7 @@ sudo sensu-install -p sensu-plugins-slack
 
 **2. Get your Slack webhook URL**
 
-If you're already an admin of a Slack, visit `https://REPLACEME.slack.com/services/new/incoming-webhook` and follow the steps to add the Incoming WebHooks integration, choose a channel, and save the settings.
+If you're already an admin of a Slack, visit `https://YOUR WORKSPACE NAME HERE.slack.com/services/new/incoming-webhook` and follow the steps to add the Incoming WebHooks integration, choose a channel, and save the settings.
 (If you're not yet a Slack admin, start [here](https://slack.com/get-started#create) to create a new workspace.)
 After saving, you'll see your webhook URL under Integration Settings.
 
@@ -280,12 +281,12 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
     }
   },
   "slack": {
-    "webhook_url": "REPLACEME"
+    "webhook_url": "YOUR WEBHOOK URL HERE"
   }
 }
 ```
 
-_NOTE: To save and exit nano, `CTRL`+`X` then `Y`._
+To save and exit nano, `CTRL`+`X` then `Y` then `ENTER`.
 
 We'll need to restart the Sensu server and API whenever making changes to Sensu's configuration files.
 
@@ -300,6 +301,7 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 ```json
+$ curl -s http://localhost:4567/settings | jq .
 {
   "client": {},
   "sensu": {
@@ -341,7 +343,7 @@ curl -s http://localhost:4567/settings | jq .
     "port": 6379
   },
   "slack": {
-    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
+    "webhook_url": "YOUR WEBHOOK URL HERE"
   }
 }
 ```
@@ -404,11 +406,15 @@ sudo nano /etc/sensu/conf.d/filters/only_critical.json
 This tells Sensu to check the event data (within the `check` scope) and only allow events with `"status": 2` to continue through the pipeline.
 
 But we're not done yet.
-Now we need to hook up the `only_critical` filter to the pipeline by adding `"filters": ["only_critical"]` to the `slack.json` handler configuration.
+Now we need to hook up the `only_critical` filter to the pipeline.
+
+Open the `slack.json` handler configuration:
 
 ```
 sudo nano /etc/sensu/conf.d/handlers/slack.json
 ```
+
+And add a line with `"filters": ["only_critical"],`, so it looks like:
 
 ```
 {
@@ -420,7 +426,7 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
     }
   },
   "slack": {
-    "webhook_url": "REPLACEME"
+    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
   }
 }
 ```
@@ -438,8 +444,18 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 ```
+$ curl -s http://localhost:4567/settings | jq .
 {
 ...
+  "filters": {
+    "only_critical": {
+      "attributes": {
+        "check": {
+          "status": 2
+        }
+      }
+    }
+  }
   "handlers": {
     "slack": {
         "filters": [
@@ -453,7 +469,7 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-If you don't get a response from the API here, check for invalid JSON in `/etc/sensu/conf.d/handlers/slack.json` and `/etc/sensu/conf.d/filters/only_critical.json`.
+If you don't get a response from the API here, check for invalid JSON in `/etc/sensu/conf.d/handlers/slack.json`.
 
 **6. Send events to the filtered pipeline**
 
@@ -553,6 +569,7 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 ```
+$ curl -s http://localhost:4567/settings | jq .
 {
 ...
   "handlers": {
@@ -584,7 +601,7 @@ Now that we have our Graphite pipeline set up, let's start the Sensu client:
 sudo systemctl start sensu-client
 ```
 
-We can see the client start up using the clients API:
+We can see the sandbox client start up using the clients API:
 
 ```
 curl -s http://localhost:4567/clients | jq .
@@ -634,8 +651,8 @@ sudo nano /etc/sensu/conf.d/client.json
 ```
 {
   "client": {
-    "subscriptions": ["sandbox-testing"],
-    "name": "sensu-core-sandbox"
+    "name": "sensu-core-sandbox",
+    "subscriptions": ["sandbox-testing"]
   }
 }
 ```
@@ -657,10 +674,10 @@ $ curl -s http://localhost:4567/clients | jq .
 [
   {
     "name": "sensu-core-sandbox",
-    "subscriptions": ["sandbox-testing"],
     "address": "10.0.2.15",
     "subscriptions": [
-      "client:sensu-core-sandbox"
+      "client:sensu-core-sandbox",
+      "sandbox-testing"
     ],
     "version": "1.4.3",
     "timestamp": 1534284788
@@ -682,11 +699,9 @@ $ curl -s http://localhost:4567/clients | jq .
 
 If you don't see the new subscription, wait a few seconds and try the settings API again.
 
-**4. Install the Sensu HTTP plugins to monitor docs.sensu.io:**
+**4. Install the Sensu HTTP Plugins to monitor docs.sensu.io**
 
-Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP plugins](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
-Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 
-You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins).
+Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
 
 First we'll install the plugin:
 
@@ -702,6 +717,7 @@ We can test its output using:
 ```
 
 ```
+$ /opt/sensu/embedded/bin/metrics-curl.rb -u https://docs.sensu.io
 sensu-core-sandbox.curl_timings.time_total 0.597 1534193106
 sensu-core-sandbox.curl_timings.time_namelookup 0.065 1534193106
 ...
@@ -766,7 +782,7 @@ $ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**6. See the automated events in [Graphite](http://172.28.128.3/?from=-10minutes&showTarget=sensu-core-sandbox.curl_timings.time_total&target=sensu-core-sandbox.curl_timings.time_total) and the [dashboard client view](http://172.28.128.3:3000/#/clients):**
+**6. See the automated events in [Graphite](http://172.28.128.3/?from=-10minutes&showTarget=sensu-core-sandbox.curl_timings.time_total&target=sensu-core-sandbox.curl_timings.time_total) and the [dashboard client view](http://172.28.128.3:3000/#/clients)**
 
 Make sure to enable auto-refresh in Graphite.
 
@@ -788,6 +804,7 @@ And test it:
 ```
 
 ```
+$ /opt/sensu/embedded/bin/metrics-disk-usage.rb
 sensu-core-sandbox.disk_usage.root.used 2235 1534191189
 sensu-core-sandbox.disk_usage.root.avail 39714 1534191189
 ...
