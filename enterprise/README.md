@@ -266,6 +266,8 @@ sudo nano /etc/sensu/conf.d/handlers/graphite.json
 }
 ```
 
+To save and exit nano, `CTRL`+`X` then `Y` then `ENTER`.
+
 We'll need to restart Sensu Enterprise whenever making changes to Sensu's configuration files.
 
 ```
@@ -489,6 +491,8 @@ $ curl -s http://localhost:4567/clients | jq .
 ]
 ```
 
+If you don't see the new subscription, wait a few seconds and try the settings API again.
+
 **3. Install the Sensu HTTP Plugins to monitor docs.sensu.io**
 
 Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugins](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
@@ -573,12 +577,15 @@ $ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**5. See the automated events in [Graphite](http://172.28.128.4/?width=944&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.4:3000/#/clients)**
+**5. See the automated events in [Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) and the [dashboard client view](http://172.28.128.3:3000/#/clients)**
+
+We should see a graph of real curl times (in seconds) for the docs site.
+Make sure to enable auto-refresh in Graphite.
 
 **6. Automate disk usage monitoring for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
-For example, let's say we want to monitor disk usage on the sandbox.
+For example, let's say we want to monitor disk usage on our virtual sandbox.
 
 First, install the [Sensu Disk Checks Plugin](https://github.com/sensu-plugins/sensu-plugins-disk-checks):
 
@@ -626,7 +633,7 @@ Finally, restart all the things:
 sudo systemctl reload sensu-enterprise && sudo systemctl restart sensu-client
 ```
 
-Now we should be able to see disk usage metrics in Graphite in addition to the docs site load times.
+Now we should be able to see [disk usage metrics for the sandbox in Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-enterprise-sandbox.disk_usage.used_percentage&from=-10minutes).
 
 You made it! You're ready for the next level of Sensu-ing.
 Here are some resources to help continue your journey:

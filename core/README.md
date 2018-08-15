@@ -784,6 +784,7 @@ $ curl -s http://localhost:4567/settings | jq .
 
 **6. See the automated events in [Graphite](http://172.28.128.3/?from=-10minutes&showTarget=sensu-core-sandbox.curl_timings.time_total&target=sensu-core-sandbox.curl_timings.time_total) and the [dashboard client view](http://172.28.128.3:3000/#/clients)**
 
+We should see a graph of real curl times (in seconds) for the docs site.
 Make sure to enable auto-refresh in Graphite.
 
 **7. Automate disk usage monitoring for the sandbox**
@@ -875,7 +876,7 @@ $ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-Now we should be able to see disk usage metrics in Graphite in addition to the docs site load times.
+Now we should be able to see [disk usage metrics for the sandbox in Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.disk_usage.used_percentage&from=-10minutes).
 
 You made it! You're ready for the next level of Sensu-ing.
 Here are some resources to help continue your journey:
