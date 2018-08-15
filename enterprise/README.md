@@ -74,6 +74,7 @@ With our sandbox server, we can see that we have no active clients, and that Sen
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
 
 ```json
+$ curl -s http://localhost:4567/settings | jq .
 {
   "client": {},
   "sensu": {
@@ -145,12 +146,13 @@ This event's data tells us that this is a warning-level alert (`"status": 1`) cr
 We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
 
 ```json
+$ curl -s http://localhost:4567/events | jq .
 [
   {
     "id": "188add2a-66aa-4fd8-aeed-bd16775e5f2d",
     "client": {
       "name": "docs.sensu.io",
-      "address": "unknown",
+      "address": "https://docs.sensu.io",
       "subscriptions": [
         "client:docs.sensu.io"
       ],
@@ -211,7 +213,7 @@ This time, use the clients API to create an event that gives Sensu some extra in
 curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "name": "docs.sensu.io",
-  "address": "unknown",
+  "address": "https://docs.sensu.io",
   "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage"
 }' \
 http://localhost:4567/clients
@@ -224,10 +226,11 @@ curl -s http://localhost:4567/clients | jq .
 ```
 
 ```json
+$ curl -s http://localhost:4567/clients | jq .
 [
   {
     "name": "docs.sensu.io",
-    "address": "unknown",
+    "address": "https://docs.sensu.io",
     "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
     "keepalives": false,
     "version": "1.4.3",
@@ -280,6 +283,7 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 ```json
+$ curl -s http://localhost:4567/settings | jq .
 {
   "client": {},
   "sensu": {
@@ -378,176 +382,8 @@ http://localhost:4567/results
 
 Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
 
-After a few seconds, we'll be able to see the [event data in Graphite](http://172.28.128.3/?width=586&height=308&target=sensu-enterprise-sandbox.curl_timings.time_total&from=-10minutes) under Metrics/sensu-enterprise-sandbox/curl_timings/time_total.
-
-(Not seeing anything? Try enabling Auto-Refresh and adjusting the time view to the last 10 minutes.)
-
-**3. Add a production-only filter to the pipeline**
-
-Let's say we've set up a development instance of docs.sensu.io that we also want to monitor, but we only want our Graphite graph to contain data from production.
-To do this, we'll add a filter to our Graphite pipeline by creating a configuration file:
-
-```
-sudo nano /etc/sensu/conf.d/filters/only_production.json
-```
-
-```json
-{
-  "filters": {
-    "only_production": {
-      "attributes": {
-        "check": {
-          "environment": "production"
-        }
-      }
-    }
-  }
-}
-```
-
-This tells Sensu to check the event data and only allow events with `"environment": "production"` to continue through the pipeline.
-
-Now we'll hook up the `only_production` filter to the `graphite` handler by adding `"filters": ["only_production"]` to the handler configuration:
-
-```
-sudo nano /etc/sensu/conf.d/handlers/graphite.json
-```
-
-```json
-{
-  "graphite": {
-    "filters": ["only_production"],
-    "host": "127.0.0.1",
-    "port": 2003
-  }
-}
-```
-
-Restart Sensu Enteprise:
-
-```
-sudo systemctl reload sensu-enterprise
-```
-
-Then use the settings API to see the only_production filter:
-
-```
-curl -s http://localhost:4567/settings | jq .
-```
-
-```json
-{
-  "client": {},
-  "sensu": {
-    "spawn": {
-      "limit": 12
-    },
-    "keepalives": {
-      "thresholds": {
-        "warning": 120,
-        "critical": 180
-      }
-    }
-  },
-  "transport": {
-    "name": "rabbitmq",
-    "reconnect_on_error": true
-  },
-  "checks": {},
-  "filters": {
-    "only_production": {
-      "attributes": {
-        "check": {
-          "environment": "production"
-        }
-      }
-    }
-  },
-  "mutators": {},
-  "handlers": {},
-  "extensions": {},
-  "rabbitmq": {
-    "host": "127.0.0.1",
-    "port": 5672,
-    "vhost": "/sensu",
-    "user": "sensu",
-    "password": "REDACTED",
-    "heartbeat": 30,
-    "prefetch": 50
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379
-  },
-  "graphite": {
-    "filters": [
-      "only_production"
-    ],
-    "host": "127.0.0.1",
-    "port": 2003
-  }
-}
-```
-
-**4. Send events to the filtered pipeline**
-
-Now any events we create must include `"environment": "production"` in order to be handled by the Graphite pipeline.
-Let's test it out by creating an event from our hypothetical development site:
-
-```
-curl -s -XPOST -H 'Content-Type: application/json' \
--d '{
-  "source": "docs.sensu.io",
-  "name": "check_curl_timings",
-  "output": "sensu-enterprise-sandbox.curl_timings.time_total 1.762 '`date +%s`'",
-  "status": 1,
-  "type": "metric",
-  "environment": "development",
-  "handlers": [
-    "graphite"
-  ]
-}' \
-http://localhost:4567/results
-```
-
-We shouldn't see anything in Graphite, but we should see an alert in the dashboard events view.
-
-Now let's create a production event:
-
-```
-curl -s -XPOST -H 'Content-Type: application/json' \
--d '{
-  "source": "docs.sensu.io",
-  "name": "check_curl_timings",
-  "output": "sensu-enterprise-sandbox.curl_timings.time_total 2.051 '`date +%s`'",
-  "status": 1,
-  "type": "metric",
-  "environment": "production",
-  "handlers": [
-    "graphite"
-  ]
-}' \
-http://localhost:4567/results
-```
-
-We should see it appear in Graphite.
-Then we can send a resolution event:
-
-```
-curl -s -XPOST -H 'Content-Type: application/json' \
--d '{
-  "source": "docs.sensu.io",
-  "name": "check_curl_timings",
-  "output": "sensu-enterprise-sandbox.curl_timings.time_total 0.672 '`date +%s`'",
-  "status": 0,
-  "type": "metric",
-  "environment": "development",
-  "handlers": [
-    "graphite"
-  ]
-}' \
-http://localhost:4567/results
-```
+After a few seconds, we'll be able to see the [event data in Graphite](http://172.28.128.3/?from=-10minutes&showTarget=sensu-enterprise-sandbox.curl_timings.time_total&target=sensu-enterprise-sandbox.curl_timings.time_total).
+Make sure to enable auto-refresh in Graphite.
 
 Great work. You've created your first Sensu pipeline!
 In the next lesson, we'll tap into the power of Sensu by adding a Sensu client to automate event production.
@@ -571,18 +407,8 @@ curl -s http://localhost:4567/clients | jq .
 ```
 
 ```json
+$ curl -s http://localhost:4567/clients | jq .
 [
-  {
-    "name": "docs.sensu.io",
-    "address": "unknown",
-    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
-    "keepalives": false,
-    "version": "1.4.3",
-    "timestamp": 1534188871,
-    "subscriptions": [
-      "client:docs.sensu.io"
-    ]
-  },
   {
     "name": "sensu-enterprise-sandbox",
     "address": "10.0.2.15",
@@ -590,14 +416,25 @@ curl -s http://localhost:4567/clients | jq .
       "client:sensu-enterprise-sandbox"
     ],
     "version": "1.4.3",
-    "timestamp": 1534190376
+    "timestamp": 1534284788
+  },
+  {
+    "name": "docs.sensu.io",
+    "address": "https://docs.sensu.io",
+    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
+    "keepalives": false,
+    "version": "1.4.3",
+    "timestamp": 1534284314,
+    "subscriptions": [
+      "client:docs.sensu.io"
+    ]
   }
 ]
 ```
 
 In the [dashboard client view](http://172.28.128.3:3000/#/clients), note that the sandbox client running in the sandbox executes keepalive checks while the docs.sensu.io proxy client cannot.
 
-_NOTE: The sandbox client gets its name from the `sensu.name` attributed configured as part of sandbox setup.
+_NOTE: The sandbox client gets its name from the `sensu.name` attribute configured as part of sandbox setup.
 You can change the client name using `sudo nano /etc/sensu/dashboard.json`._
 
 **2. Add a client subscription**
@@ -631,27 +468,28 @@ curl -s http://localhost:4567/clients | jq .
 ```
 
 ```json
+$ curl -s http://localhost:4567/clients | jq .
 [
-  {
-    "name": "docs.sensu.io",
-    "address": "unknown",
-    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
-    "keepalives": false,
-    "version": "1.4.3",
-    "timestamp": 1534188871,
-    "subscriptions": [
-      "client:docs.sensu.io"
-    ]
-  },
   {
     "name": "sensu-enterprise-sandbox",
     "address": "10.0.2.15",
     "subscriptions": [
-      "sandbox-testing",
-      "client:sensu-enterprise-sandbox"
+      "client:sensu-enterprise-sandbox",
+      "sandbox-testing"
     ],
     "version": "1.4.3",
-    "timestamp": 1534190720
+    "timestamp": 1534284788
+  },
+  {
+    "name": "docs.sensu.io",
+    "address": "https://docs.sensu.io",
+    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
+    "keepalives": false,
+    "version": "1.4.3",
+    "timestamp": 1534284314,
+    "subscriptions": [
+      "client:docs.sensu.io"
+    ]
   }
 ]
 ```
@@ -718,28 +556,9 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 ```json
+$ curl -s http://localhost:4567/settings | jq .
 {
-  "client": {
-    "name": "sensu-enterprise-sandbox",
-    "subscriptions": [
-      "sandbox-testing"
-    ]
-  },
-  "sensu": {
-    "spawn": {
-      "limit": 12
-    },
-    "keepalives": {
-      "thresholds": {
-        "warning": 120,
-        "critical": 180
-      }
-    }
-  },
-  "transport": {
-    "name": "rabbitmq",
-    "reconnect_on_error": true
-  },
+
   "checks": {
     "check_curl_timings": {
       "source": "docs.sensu.io",
@@ -755,38 +574,7 @@ curl -s http://localhost:4567/settings | jq .
       ]
     }
   },
-  "filters": {
-    "only_production": {
-      "attributes": {
-        "check": {
-          "environment": "production"
-        }
-      }
-    }
-  },
-  "mutators": {},
-  "handlers": {},
-  "extensions": {},
-  "rabbitmq": {
-    "host": "127.0.0.1",
-    "port": 5672,
-    "vhost": "/sensu",
-    "user": "sensu",
-    "password": "REDACTED",
-    "heartbeat": 30,
-    "prefetch": 50
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379
-  },
-  "graphite": {
-    "host": "127.0.0.1",
-    "port": 2003,
-    "filters": [
-      "only_production"
-    ]
-  }
+
 }
 ```
 

@@ -65,6 +65,7 @@ With our sandbox server, we can see that we have no active clients, and that Sen
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
 
 ```json
+$ curl -s http://localhost:4567/settings | jq .
 {
   "client": {},
   "sensu": {
@@ -135,9 +136,8 @@ Event data contains information about the part of your system the event came fro
 In this example, the event data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
 We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
 
-It should look something like this:
-
 ```json
+$ curl -s http://localhost:4567/events | jq .
 [
   {
     "id": "188add2a-66aa-4fd8-aeed-bd16775e5f2d",
@@ -192,7 +192,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-After about 10 seconds, we can see that there are no active alerts and that the client is healthy by checking the [dashboard client view](http://172.28.128.3:3000/#/clients).
+After a few seconds, we can check the [dashboard client view](http://172.28.128.3:3000/#/clients) and see that there are no active alerts and that the client is healthy.
 
 _NOTE: The dashboard auto-refreshes every 10 seconds._
 
@@ -248,8 +248,8 @@ In this lesson, we'll create a pipeline to send alerts to Slack.
 **1. Install the Sensu Slack Plugin**
 
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community.
-In this lesson, we'll use the [Sensu Slack Plugins](https://github.com/sensu-plugins/sensu-plugins-slack) to create our pipeline.
-You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins), or check out Sensu Enterprise's [built-in integrations](https://docs.sensu.io/sensu-enterprise/3.1/built-in-handlers).
+In this lesson, we'll use the [Sensu Slack plugins](https://github.com/sensu-plugins/sensu-plugins-slack) to create our pipeline.
+You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins), or check out [Sensu Enterprise's built-in integrations](https://docs.sensu.io/sensu-enterprise/3.1/built-in-handlers).
 
 First we'll need to install the plugins:
 
@@ -261,11 +261,11 @@ sudo sensu-install -p sensu-plugins-slack
 
 If you're already an admin of a Slack, visit `https://REPLACEME.slack.com/services/new/incoming-webhook` and follow the steps to add the Incoming WebHooks integration, choose a channel, and save the settings.
 (If you're not yet a Slack admin, start [here](https://slack.com/get-started#create) to create a new workspace.)
-You'll see your webhook URL under Integration Settings.
+After saving, you'll see your webhook URL under Integration Settings.
 
 **3. Create a handler to send event data to Slack**
 
-To set up our Slack pipeline, we'll create a handler configuration file that points to the Sensu Slack Plugin and specifies your webhook URL:
+To set up our Slack pipeline, we'll create a handler configuration file that points to the `handler-slack.rb` plugin and specifies your webhook URL:
 
 ```
 sudo nano /etc/sensu/conf.d/handlers/slack.json
@@ -285,7 +285,7 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
 }
 ```
 
-(`CTRL`+`X` then `Y` to save and exit nano.)
+_NOTE: To save and exit nano, `CTRL`+`X` then `Y`._
 
 We'll need to restart the Sensu server and API whenever making changes to Sensu's configuration files.
 
@@ -439,33 +439,7 @@ curl -s http://localhost:4567/settings | jq .
 
 ```
 {
-  "client": {},
-  "sensu": {
-    "spawn": {
-      "limit": 12
-    },
-    "keepalives": {
-      "thresholds": {
-        "warning": 120,
-        "critical": 180
-      }
-    }
-  },
-  "transport": {
-    "name": "rabbitmq",
-    "reconnect_on_error": true
-  },
-  "checks": {},
-  "filters": {
-    "only_critical": {
-      "attributes": {
-        "check": {
-          "status": 2
-        }
-      }
-    }
-  },
-  "mutators": {},
+...
   "handlers": {
     "slack": {
         "filters": [
@@ -475,23 +449,7 @@ curl -s http://localhost:4567/settings | jq .
         "command": "handler-slack.rb"
     }
   },
-  "extensions": {},
-  "rabbitmq": {
-    "host": "127.0.0.1",
-    "port": 5672,
-    "vhost": "/sensu",
-    "user": "sensu",
-    "password": "REDACTED",
-    "heartbeat": 30,
-    "prefetch": 50
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379
-  },
-  "slack": {
-    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
-  }
+...
 }
 ```
 
@@ -580,7 +538,7 @@ sudo nano /etc/sensu/conf.d/handlers/graphite.json
 }
 ```
 
-Adding a mutator here tells Sensu to pass only the `output` from the event to Graphite.
+This tells Sensu to reduce event data to only the `output` and forward it a TCP socket.
 
 Now restart the Sensu server and API:
 
@@ -588,7 +546,7 @@ Now restart the Sensu server and API:
 sudo systemctl restart sensu-{server,api}
 ```
 
-And confirm it using the settings API:
+And confirm using the settings API:
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -596,32 +554,7 @@ curl -s http://localhost:4567/settings | jq .
 
 ```
 {
-  "client": {},
-  "sensu": {
-    "spawn": {
-      "limit": 12
-    },
-    "keepalives": {
-      "thresholds": {
-        "warning": 120,
-        "critical": 180
-      }
-    }
-  },
-  "transport": {
-    "name": "rabbitmq",
-    "reconnect_on_error": true
-  },
-  "checks": {},
-  "filters": {
-    "only_critical": {
-      "attributes": {
-        "check": {
-          "status": 2
-        }
-      }
-    }
-  },
+...
   "mutators": {},
   "handlers": {
     "slack": {
@@ -640,23 +573,7 @@ curl -s http://localhost:4567/settings | jq .
       "mutator": "only_check_output"
     }
   },
-  "extensions": {},
-  "rabbitmq": {
-    "host": "127.0.0.1",
-    "port": 5672,
-    "vhost": "/sensu",
-    "user": "sensu",
-    "password": "REDACTED",
-    "heartbeat": 30,
-    "prefetch": 50
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379
-  },
-  "slack": {
-    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
-  }
+...
 }
 ```
 
@@ -674,7 +591,8 @@ We can see the client start up using the clients API:
 curl -s http://localhost:4567/clients | jq .
 ```
 
-```
+```json
+$ curl -s http://localhost:4567/clients | jq .
 [
   {
     "name": "sensu-core-sandbox",
@@ -702,7 +620,7 @@ curl -s http://localhost:4567/clients | jq .
 
 In the [dashboard client view](http://172.28.128.3:3000/#/clients), note that the client running in the sandbox executes keepalive checks while the `docs.sensu.io` proxy client cannot.
 
-_NOTE: The client gets its name from the `sensu.name` attributed configured as part of sandbox setup.
+_NOTE: The client gets its name from the `sensu.name` attribute configured as part of sandbox setup.
 You can change the client name using `sudo nano /etc/sensu/uchiwa.json`._
 
 **3. Add a client subscription**
@@ -736,6 +654,7 @@ curl -s http://localhost:4567/clients | jq .
 ```
 
 ```
+$ curl -s http://localhost:4567/clients | jq .
 [
   {
     "name": "sensu-core-sandbox",
@@ -764,9 +683,9 @@ curl -s http://localhost:4567/clients | jq .
 
 If you don't see the new subscription, wait a few seconds and try the settings API again.
 
-**4. Install the Sensu HTTP Plugin to check the load time for docs.sensu.io:**
+**4. Install the Sensu HTTP plugins to check the load time for docs.sensu.io:**
 
-Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
+Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP plugins](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 
 You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins).
 
@@ -776,7 +695,7 @@ First we'll install the plugin:
 sudo sensu-install -p sensu-plugins-http
 ```
 
-From the Sensu HTTP Plugin, we'll be using the `metrics-curl.rb` script.
+We'll be using the `metrics-curl.rb` plugin.
 We can test its output using:
 
 ```
@@ -827,28 +746,9 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 ```
+$ curl -s http://localhost:4567/settings | jq .
 {
-  "client": {
-    "name": "sensu-core-sandbox",
-    "subscriptions": [
-      "sandbox-testing"
-    ]
-  },
-  "sensu": {
-    "spawn": {
-      "limit": 12
-    },
-    "keepalives": {
-      "thresholds": {
-        "warning": 120,
-        "critical": 180
-      }
-    }
-  },
-  "transport": {
-    "name": "rabbitmq",
-    "reconnect_on_error": true
-  },
+...
   "checks": {
     "check_curl_timings": {
       "source": "docs.sensu.io",
@@ -863,56 +763,13 @@ curl -s http://localhost:4567/settings | jq .
       ]
     }
   },
-  "filters": {
-    "only_critical": {
-      "attributes": {
-        "check": {
-          "status": 2
-        }
-      }
-    }
-  },
-  "mutators": {},
-  "handlers": {
-    "slack": {
-      "type": "pipe",
-      "filters": [
-        "only_critical"
-      ],
-      "command": "handler-slack.rb"
-    },
-    "graphite": {
-      "type": "tcp",
-      "socket": {
-        "host": "127.0.0.1",
-        "port": 2003
-      },
-      "mutator": "only_check_output"
-    }
-  },
-  "extensions": {},
-  "rabbitmq": {
-    "host": "127.0.0.1",
-    "port": 5672,
-    "vhost": "/sensu",
-    "user": "sensu",
-    "password": "REDACTED",
-    "heartbeat": 30,
-    "prefetch": 50
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379
-  },
-  "slack": {
-    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
-  }
+...
 }
 ```
 
 **6. See the automated events in [Graphite](http://172.28.128.3/?from=-10minutes&showTarget=sensu-core-sandbox.curl_timings.time_total&target=sensu-core-sandbox.curl_timings.time_total) and the [dashboard client view](http://172.28.128.3:3000/#/clients):**
 
-Make sure to enable auto-refresh.
+Make sure to enable auto-refresh in Graphite.
 
 **7. Automate CPU usage metrics for the sandbox**
 
@@ -937,7 +794,7 @@ sensu-core-sandbox.disk_usage.root.avail 39714 1534191189
 ...
 ```
 
-Then create the check using a configuration file, assigning it to the `sandbox-testing` subscription and the `graphite` pipeline:
+Then create the check using a configuration file, assigning it to the `sandbox-testing` subscription and the Graphite pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
@@ -963,35 +820,16 @@ Finally, restart all the things:
 sudo systemctl restart sensu-{client,server,api}
 ```
 
-And you should see it working in the dashboard client view and via the settings API:
+And we should see it working in the dashboard client view and via the settings API:
 
 ```
 curl -s http://localhost:4567/settings | jq .
 ```
 
 ```
+$ curl -s http://localhost:4567/settings | jq .
 {
-  "client": {
-    "name": "sensu-core-sandbox",
-    "subscriptions": [
-      "sandbox-testing"
-    ]
-  },
-  "sensu": {
-    "spawn": {
-      "limit": 12
-    },
-    "keepalives": {
-      "thresholds": {
-        "warning": 120,
-        "critical": 180
-      }
-    }
-  },
-  "transport": {
-    "name": "rabbitmq",
-    "reconnect_on_error": true
-  },
+...
   "checks": {
     "check_curl_timings": {
       "source": "docs.sensu.io",
@@ -1017,51 +855,14 @@ curl -s http://localhost:4567/settings | jq .
       ]
     }
   },
-  "filters": {
-    "only_critical": {
-      "attributes": {
-        "check": {
-          "status": 2
-        }
-      }
-    }
-  },
-  "mutators": {},
-  "handlers": {
-    "slack": {
-      "type": "pipe",
-      "command": "handler-slack.rb",
-      "filters": [
-        "only_critical"
-      ]
-    },
-    "graphite": {
-      "type": "tcp",
-      "socket": {
-        "host": "127.0.0.1",
-        "port": 2003
-      }
-    }
-  },
-  "extensions": {},
-  "rabbitmq": {
-    "host": "127.0.0.1",
-    "port": 5672,
-    "vhost": "/sensu",
-    "user": "sensu",
-    "password": "REDACTED",
-    "heartbeat": 30,
-    "prefetch": 50
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379
-  },
-  "slack": {
-    "webhook_url": "https://hooks.slack.com/services/xxxxxxxx/xxxxxxxxxxx"
-  }
+...
 }
 ```
 
 Now we should be able to see disk usage metrics in Graphite in addition to the docs site load times.
 
+You made it! You're ready for the next level of Sensu-ing.
+Here are some resources to help continue your journey:
+
+- [Install Sensu with configuration management]
+- [Create application events using the client socket]
