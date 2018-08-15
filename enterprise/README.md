@@ -494,7 +494,7 @@ $ curl -s http://localhost:4567/clients | jq .
 ]
 ```
 
-**3. Install the Sensu HTTP Plugin**
+**3. Install the Sensu HTTP Plugin to monitor docs.sensu.io**
 
 Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 

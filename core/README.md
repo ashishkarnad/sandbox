@@ -245,7 +245,7 @@ Now that we know the sandbox is working properly, let's get to the fun stuff: cr
 In this lesson, we'll create a pipeline to send alerts to Slack.
 (If you'd rather not create a Slack account, you can skip ahead to [lesson 3](#lesson-3-automate-event-production-with-the-sensu-client).)
 
-**1. Install the Sensu Slack Plugin**
+**1. Install the Sensu Slack plugin**
 
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community.
 In this lesson, we'll use the [Sensu Slack plugins](https://github.com/sensu-plugins/sensu-plugins-slack) to create our pipeline.
@@ -577,7 +577,7 @@ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**2. Start the Sensu client:**
+**2. Start the Sensu client**
 
 Now that we have our Graphite pipeline set up, let's start the Sensu client:
 
@@ -683,7 +683,7 @@ $ curl -s http://localhost:4567/clients | jq .
 
 If you don't see the new subscription, wait a few seconds and try the settings API again.
 
-**4. Install the Sensu HTTP plugins to check the load time for docs.sensu.io:**
+**4. Install the Sensu HTTP plugins to monitor docs.sensu.io:**
 
 Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP plugins](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community. 
@@ -708,7 +708,7 @@ sensu-core-sandbox.curl_timings.time_namelookup 0.065 1534193106
 ...
 ```
 
-**5. Create a check that gets the load time metrics for docs.sensu.io**
+**5. Create a check that produces curl timing events for docs.sensu.io**
 
 Use a configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the Graphite pipeline:
 
@@ -771,7 +771,7 @@ $ curl -s http://localhost:4567/settings | jq .
 
 Make sure to enable auto-refresh in Graphite.
 
-**7. Automate CPU usage metrics for the sandbox**
+**7. Automate disk usage monitoring for the sandbox**
 
 Now that we have a client and subscription set up, we can easily add more checks.
 For example, let's say we want to monitor disk usage on the sandbox.
