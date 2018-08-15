@@ -24,9 +24,7 @@ While this sandbox is internal to Sensu, please add feedback to this [GoogleDoc]
 [Download from GitHub](https://github.com/sensu/sandbox/archive/v1-wip.zip) or clone the repository:
 
 ```
-git clone git@github.com:sensu/sandbox.git
-cd sandbox
-git checkout v1-wip
+git clone git@github.com:sensu/sandbox.git && cd sandbox && git checkout v1-wip
 ```
 
 If you downloaded the zip file from GitHub, unzip the folder and move it into your Documents folder.
@@ -35,17 +33,21 @@ Then open Terminal and enter `cd Documents` followed by `cd sandbox-1-wip`.
 **3. Start Vagrant:**
 
 ```
-cd core
-vagrant up
+cd core && vagrant up
 ```
 
-This will take around five minutes, so if you haven't already, [read about how Sensu works]().
+This will take around five minutes, so if you haven't already, [read about how Sensu works](https://docs.sensu.io/sensu-core/1.4/overview/architecture) or see the [appendix](#appendix-sandbox-contents) for details about the sandbox.
 
 **4. SSH into the sandbox:**
+
+Thanks for waiting! To start using the sandbox:
 
 ```
 vagrant ssh
 ```
+
+_NOTE: To exit out of the sandbox, use `CTRL`+`D`.
+Use `vagrant destroy` then `vagrant up` to erase and restart the sandbox._
 
 ---
 
@@ -61,8 +63,6 @@ curl -s http://localhost:4567/settings | jq .
 
 With our sandbox server, we can see that we have no active clients, and that Sensu is using RabbitMQ as the transport and Redis as the datastore.
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
-
-It should look something like this:
 
 ```json
 {
@@ -192,11 +192,11 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-In the [dashboard client view](http://172.28.128.3:3000/#/clients), we can see that there are no active alerts and that the client is healthy.
+After about 10 seconds, we can see that there are no active alerts and that the client is healthy by checking the [dashboard client view](http://172.28.128.3:3000/#/clients).
 
 _NOTE: The dashboard auto-refreshes every 10 seconds._
 
-**4. Provide context about the systems we're monitoring with a discovery event**
+**4. Create a discovery event to provide context about the systems we're monitoring**
 
 This time, use the clients API to create an event that gives Sensu some extra information about docs.sensu.io:
 
@@ -242,26 +242,24 @@ In the next lesson, we'll act on these events by creating a pipeline.
 ## Lesson \#2: Pipe events into Slack
 
 Now that we know the sandbox is working properly, let's get to the fun stuff: creating a pipeline.
-In this lesson, we'll create a pipeline to send events to Slack.
-If you'd rather not create a Slack account, check out the [Sensu Enterprise sandbox tutorial](../enterprise).
+In this lesson, we'll create a pipeline to send alerts to Slack.
+(If you'd rather not create a Slack account, you can skip ahead to [lesson 3](#lesson-3-automate-event-production-with-the-sensu-client).)
 
 **1. Install the Sensu Slack Plugin**
 
 Sensu Plugins are open-source collections of Sensu building blocks shared by the Sensu Community.
-In this lesson, we'll be using the [Sensu Slack Plugin's](https://github.com/sensu-plugins/sensu-plugins-slack) `handler-slack.rb` script to create our pipeline.
-You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins).
+In this lesson, we'll use the [Sensu Slack Plugins](https://github.com/sensu-plugins/sensu-plugins-slack) to create our pipeline.
+You can find this and more [Sensu Plugins on GitHub](https://github.com/sensu-plugins), or check out Sensu Enterprise's [built-in integrations](https://docs.sensu.io/sensu-enterprise/3.1/built-in-handlers).
 
-First we'll need to install the plugin:
+First we'll need to install the plugins:
 
 ```
 sudo sensu-install -p sensu-plugins-slack
 ```
 
-_PRO TIP: Check out Sensu Enterprise's [built-in integrations](https://docs.sensu.io/sensu-enterprise/3.1/built-in-handlers), including Slack, email, IRC, and more._
-
 **2. Get your Slack webhook URL**
 
-If you're already an admin of a Slack, visit https://{your workspace}.slack.com/services/new/incoming-webhook and follow the steps to add the Incoming WebHooks integration, choose a channel, and save the settings.
+If you're already an admin of a Slack, visit `https://REPLACEME.slack.com/services/new/incoming-webhook` and follow the steps to add the Incoming WebHooks integration, choose a channel, and save the settings.
 (If you're not yet a Slack admin, start [here](https://slack.com/get-started#create) to create a new workspace.)
 You'll see your webhook URL under Integration Settings.
 
@@ -286,6 +284,8 @@ sudo nano /etc/sensu/conf.d/handlers/slack.json
   }
 }
 ```
+
+(`CTRL`+`X` then `Y` to save and exit nano.)
 
 We'll need to restart the Sensu server and API whenever making changes to Sensu's configuration files.
 
@@ -533,6 +533,9 @@ http://localhost:4567/results
 And we should see it in Slack!
 You can customize your Slack messages using the [Sensu Slack Plugin handler attributes](https://github.com/sensu-plugins/sensu-plugins-slack#usage-for-handler-slackrb).
 
+Great work. You've created your first Sensu pipeline!
+In the next lesson, we'll tap into the power of Sensu by adding a Sensu client to automate event production.
+
 Before we go, let's create a resolution event.
 (It should not appear in Slack, but we should see the results in the [dashboard client view](http://172.28.128.3:3000/#/clients).)
 
@@ -548,14 +551,11 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-Great work. You've created your first Sensu pipeline!
-In the next lesson, we'll tap into the power of Sensu by adding a Sensu client to automate event production.
-
 ---
 
 ## Lesson \#3: Automate event production with the Sensu client
 So far we've used only the Sensu server and API, but in this lesson, we'll add the Sensu client and create a check to produce events automatically.
-Instead of to Slack, we'll be using [Graphite](http://graphite.readthedocs.io/en/latest/) to store event data.
+Instead of sending alerts to Slack, we'll store event data with [Graphite](http://graphite.readthedocs.io/en/latest/).
 
 **1. Create a Graphite pipeline**
 
@@ -580,13 +580,15 @@ sudo nano /etc/sensu/conf.d/handlers/graphite.json
 }
 ```
 
-Restart the Sensu server and API:
+Adding a mutator here tells Sensu to pass only the `output` from the event to Graphite.
+
+Now restart the Sensu server and API:
 
 ```
 sudo systemctl restart sensu-{server,api}
 ```
 
-And finally check out work using the settings API:
+And confirm it using the settings API:
 
 ```
 curl -s http://localhost:4567/settings | jq .
@@ -623,10 +625,10 @@ curl -s http://localhost:4567/settings | jq .
   "mutators": {},
   "handlers": {
     "slack": {
-      "type": "pipe",
       "filters": [
         "only_critical"
       ],
+      "type": "pipe",
       "command": "handler-slack.rb"
     },
     "graphite": {
@@ -675,6 +677,15 @@ curl -s http://localhost:4567/clients | jq .
 ```
 [
   {
+    "name": "sensu-core-sandbox",
+    "address": "10.0.2.15",
+    "subscriptions": [
+      "client:sensu-core-sandbox"
+    ],
+    "version": "1.4.3",
+    "timestamp": 1534284788
+  },
+  {
     "name": "docs.sensu.io",
     "address": "https://docs.sensu.io",
     "environment": "production",
@@ -685,15 +696,6 @@ curl -s http://localhost:4567/clients | jq .
     "subscriptions": [
       "client:docs.sensu.io"
     ]
-  },
-  {
-    "name": "sensu-core-sandbox",
-    "address": "10.0.2.15",
-    "subscriptions": [
-      "client:sensu-core-sandbox"
-    ],
-    "version": "1.4.3",
-    "timestamp": 1534284788
   }
 ]
 ```
@@ -701,12 +703,12 @@ curl -s http://localhost:4567/clients | jq .
 In the [dashboard client view](http://172.28.128.3:3000/#/clients), note that the client running in the sandbox executes keepalive checks while the `docs.sensu.io` proxy client cannot.
 
 _NOTE: The client gets its name from the `sensu.name` attributed configured as part of sandbox setup.
-You can change the client name using `sudo nano /etc/sensu/uchiwa.json`_
+You can change the client name using `sudo nano /etc/sensu/uchiwa.json`._
 
 **3. Add a client subscription**
 
 Clients run the set of checks defined by their `subscriptions`.
-Use a JSON configuration file to assign our new client to run checks with the `sandbox-testing` subscription using `"subscriptions": ["sandbox-testing"]`:
+Use a configuration file to assign our new client to run checks with the `sandbox-testing` subscription using `"subscriptions": ["sandbox-testing"]`:
 
 ```
 sudo nano /etc/sensu/conf.d/client.json
@@ -715,8 +717,8 @@ sudo nano /etc/sensu/conf.d/client.json
 ```
 {
   "client": {
-    "name": "sensu-core-sandbox",
-    "subscriptions": ["sandbox-testing"]
+    "subscriptions": ["sandbox-testing"],
+    "name": "sensu-core-sandbox"
   }
 }
 ```
@@ -736,6 +738,16 @@ curl -s http://localhost:4567/clients | jq .
 ```
 [
   {
+    "name": "sensu-core-sandbox",
+    "subscriptions": ["sandbox-testing"],
+    "address": "10.0.2.15",
+    "subscriptions": [
+      "client:sensu-core-sandbox"
+    ],
+    "version": "1.4.3",
+    "timestamp": 1534284788
+  },
+  {
     "name": "docs.sensu.io",
     "address": "https://docs.sensu.io",
     "environment": "production",
@@ -746,16 +758,6 @@ curl -s http://localhost:4567/clients | jq .
     "subscriptions": [
       "client:docs.sensu.io"
     ]
-  },
-  {
-    "name": "sensu-core-sandbox",
-    "address": "10.0.2.15",
-    "subscriptions": [
-      "sandbox-testing",
-      "client:sensu-core-sandbox"
-    ],
-    "version": "1.4.3",
-    "timestamp": 1534284858
   }
 ]
 ```
@@ -789,7 +791,7 @@ sensu-core-sandbox.curl_timings.time_namelookup 0.065 1534193106
 
 **5. Create a check that gets the load time metrics for docs.sensu.io**
 
-Use a JSON configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the Graphite pipeline:
+Use a configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the Graphite pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
@@ -935,7 +937,7 @@ sensu-core-sandbox.disk_usage.root.avail 39714 1534191189
 ...
 ```
 
-Then create the check using a JSON configuration file, assigning it to the `sandbox-testing` subscription and the `graphite_tcp` pipeline:
+Then create the check using a configuration file, assigning it to the `sandbox-testing` subscription and the `graphite` pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
@@ -1011,7 +1013,7 @@ curl -s http://localhost:4567/settings | jq .
       ],
       "type": "metric",
       "handlers": [
-        "graphite_tcp"
+        "graphite"
       ]
     }
   },
