@@ -32,7 +32,7 @@ Then open Terminal and enter `cd Documents` followed by `cd sandbox-1-wip`.
 
 **3. Add your Sensu Enterprise username and password**
 
-[Sign up for a free trial of Sensu Enterprise](https://account.sensu.io/users/sign_up?plan=silver), and get your access credentials from the [Sensu account manager](https://account.sensu.io/).
+[Sign up for a free trial of Sensu Enterprise](https://account.sensu.io/users/sign_up?plan=gold), and get your access credentials from the [Sensu account manager](https://account.sensu.io/).
 
 Then add your Sensu Enterprise username and password to the sandbox:
 
