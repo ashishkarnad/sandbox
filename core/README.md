@@ -529,24 +529,24 @@ http://localhost:4567/results
 
 ## Lesson \#3: Automate event production with the Sensu client
 So far we've used only the Sensu server and API, but in this lesson, we'll add the Sensu client and create a check to produce events automatically.
-Instead of sending alerts to Slack, we'll store event data with [Graphite](http://graphite.readthedocs.io/en/latest/).
+Instead of sending alerts to Slack, we'll store event data with [InfluxDB]().
 
-**1. Create a Graphite pipeline**
+**1. Create an InfluxDB pipeline**
 
-Since we've already installed Graphite as part of the sandbox, all we need to do to create a Graphite pipeline is create a configuration file:
+Since we've already installed Graphite as part of the sandbox, all we need to do to create an InfluxDB pipeline is create a configuration file:
 
 ```
-sudo nano /etc/sensu/conf.d/handlers/graphite.json
+sudo nano /etc/sensu/conf.d/handlers/influx.json
 ```
 
 ```
 {
   "handlers": {
-    "graphite": {
+    "influx": {
       "type": "tcp",
       "socket": {
-        "host":"127.0.0.1",
-        "port":2003
+        "host": "127.0.0.1",
+        "port": 2003
       },
       "mutator": "only_check_output"
     }
@@ -735,12 +735,12 @@ sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
 {
   "checks": {
     "check_curl_timings": {
-      "source": "docs.sensu.io",
-      "command": "metrics-curl.rb -u https://docs.sensu.io",
+      "source": "google_maps",
+      "command": "metrics-curl.rb -u https://www.google.com/maps",
       "interval": 10,
       "subscribers": ["sandbox-testing"],
       "type": "metric",
-      "handlers": ["graphite"]
+      "handlers": ["influx"]
     }
   }
 }

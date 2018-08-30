@@ -25,8 +25,29 @@ baseurl="https://repositories.sensuapp.org/yum/$releasever/$basearch/"
 gpgcheck=0
 enabled=1' | sudo tee /etc/yum.repos.d/sensu.repo
 
+# Add the InfluxDB YUM repository
+echo '[influxdb]
+name = InfluxDB Repository - RHEL $releasever
+baseurl = https://repos.influxdata.com/rhel/$releasever/$basearch/stable
+enabled = 1
+gpgcheck = 1
+gpgkey = https://repos.influxdata.com/influxdb.key' | tee /etc/yum.repos.d/influxdb.repo
+
+# Add the Grafana YUM repository
+echo '[grafana]
+name=grafana
+baseurl=https://packagecloud.io/grafana/stable/el/7/$basearch
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://packagecloud.io/gpg.key https://grafanarel.s3.amazonaws.com/RPM-GPG-KEY-grafana
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt' | tee /etc/yum.repos.d/grafana.repo
+
 # Get Redis installed
-sudo yum install redis -y
+sudo yum install redis influxdb grafana -y
+systemctl stop firewalld
+systemctl disable firewalld
 
 # Install Sensu itself
 sudo yum install sensu uchiwa -y
@@ -38,8 +59,12 @@ echo '{
   }
 }' | sudo tee /etc/sensu/transport.json
 
+sed -i 's/^;http_port = 3000/http_port = 4000/' /etc/grafana/grafana.ini
+
 # Ensure config file permissions are correct
 sudo chown -R sensu:sensu /etc/sensu
+cp -r /vagrant/files/grafana/* /etc/grafana/
+chown -R grafana:grafana /etc/grafana
 
 # Install curl and jq helper utilities
 sudo yum install curl jq -y
@@ -112,6 +137,13 @@ sudo systemctl enable uchiwa
 sudo systemctl enable redis.service
 sudo systemctl enable rabbitmq-server
 sudo systemctl enable sensu-{server,api}.service
+systemctl start influxdb
+chkconfig influxdb on
+systemctl start grafana-server
+systemctl enable grafana-server.service
+
+# Create the InfluxDB database
+influx -execute "CREATE DATABASE sensu;"
 
 echo -e "=================
 Sensu is now up and running!
