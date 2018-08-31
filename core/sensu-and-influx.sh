@@ -66,6 +66,9 @@ sudo chown -R sensu:sensu /etc/sensu
 cp -r /vagrant/files/grafana/* /etc/grafana/
 chown -R grafana:grafana /etc/grafana
 
+rm /etc/influxdb/influxdb.conf
+cp /vagrant/files/influxdb/influxdb.conf /etc/influxdb/influxdb.conf
+
 # Install curl and jq helper utilities
 sudo yum install curl jq -y
 

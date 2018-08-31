@@ -21,14 +21,14 @@ While this sandbox is internal to Sensu, please add feedback to this [GoogleDoc]
 
 **2. Download the sandbox:**
 
-[Download from GitHub](https://github.com/sensu/sandbox/archive/v1-wip.zip) or clone the repository:
+[Download from GitHub](https://github.com/sensu/sandbox/archive/v2-wip.zip) or clone the repository:
 
 ```
-git clone git@github.com:sensu/sandbox.git && cd sandbox && git checkout v1-wip
+git clone git@github.com:sensu/sandbox.git && cd sandbox && git checkout v2-wip
 ```
 
 If you downloaded the zip file from GitHub, unzip the folder and move it into your Documents folder.
-Then open Terminal and enter `cd Documents` followed by `cd sandbox-1-wip`.
+Then open Terminal and enter `cd Documents` followed by `cd sandbox-2-wip`.
 
 **3. Start Vagrant:**
 
@@ -61,7 +61,7 @@ First off, we'll make sure everything is working correctly by creating a few eve
 curl -s http://localhost:4567/settings | jq .
 ```
 
-With our sandbox server, we can see that we have no active clients, and that Sensu is using RabbitMQ as the transport and Redis as the datastore.
+With the Sensu server, we can see that we have no active clients, and that Sensu is using RabbitMQ as the transport and Redis as the datastore.
 We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
 
 ```json
@@ -303,45 +303,14 @@ curl -s http://localhost:4567/settings | jq .
 ```json
 $ curl -s http://localhost:4567/settings | jq .
 {
-  "client": {},
-  "sensu": {
-    "spawn": {
-      "limit": 12
-    },
-    "keepalives": {
-      "thresholds": {
-        "warning": 120,
-        "critical": 180
-      }
-    }
-  },
-  "transport": {
-    "name": "rabbitmq",
-    "reconnect_on_error": true
-  },
-  "checks": {},
-  "filters": {},
-  "mutators": {},
+  "...": "...",
   "handlers": {
     "slack": {
       "type": "pipe",
       "command": "handler-slack.rb"
     }
   },
-  "extensions": {},
-  "rabbitmq": {
-    "host": "127.0.0.1",
-    "port": 5672,
-    "vhost": "/sensu",
-    "user": "sensu",
-    "password": "REDACTED",
-    "heartbeat": 30,
-    "prefetch": 50
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379
-  },
+  "...": "...",
   "slack": {
     "webhook_url": "YOUR WEBHOOK URL HERE"
   }
@@ -357,7 +326,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check_curl_timings",
-  "output": "Not great. The docs site took 1.721 seconds to load.",
+  "output": "Not great. The docs site took x.xxx seconds to load.",
   "status": 1,
   "handlers": ["slack"]
 }' \
@@ -373,7 +342,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check_curl_timings",
-  "output": "Nice! The docs site took 0.516 seconds to load.",
+  "output": "Nice! The docs site took x.xxx seconds to load.",
   "status": 0,
   "handlers": ["slack"]
 }' \
@@ -446,7 +415,7 @@ curl -s http://localhost:4567/settings | jq .
 ```
 $ curl -s http://localhost:4567/settings | jq .
 {
-...
+  "...": "...",
   "filters": {
     "only_critical": {
       "attributes": {
@@ -455,17 +424,8 @@ $ curl -s http://localhost:4567/settings | jq .
         }
       }
     }
-  }
-  "handlers": {
-    "slack": {
-        "filters": [
-          "only_critical"
-        ],
-        "type": "pipe",
-        "command": "handler-slack.rb"
-    }
   },
-...
+  "...": "..."
 }
 ```
 
@@ -481,7 +441,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check_curl_timings",
-  "output": "Not great. The docs site took 1.990 seconds to load.",
+  "output": "Not great. The docs site took x.xxx seconds to load.",
   "status": 1,
   "handlers": ["slack"]
 }' \
@@ -497,7 +457,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check_curl_timings",
-  "output": "Something is up. The docs site took 4.272 seconds to load.",
+  "output": "Something is up. The docs site took x.xxx seconds to load.",
   "status": 2,
   "handlers": ["slack"]
 }' \
@@ -518,7 +478,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 -d '{
   "source": "docs.sensu.io",
   "name": "check_curl_timings",
-  "output": "Nice! The docs site took 0.608 seconds to load.",
+  "output": "Nice! The docs site took x.xxx seconds to load.",
   "status": 0,
   "handlers": ["slack"]
 }' \
@@ -529,11 +489,46 @@ http://localhost:4567/results
 
 ## Lesson \#3: Automate event production with the Sensu client
 So far we've used only the Sensu server and API, but in this lesson, we'll add the Sensu client and create a check to produce events automatically.
-Instead of sending alerts to Slack, we'll store event data with [InfluxDB]().
+Instead of sending alerts to Slack, we'll store event data with [InfluxDB](https://www.influxdata.com/) and visualize it with [Grafana](https://grafana.com/).
 
-**1. Create an InfluxDB pipeline**
+**1. Install Nginx and the Sensu HTTP Plugin**
 
-Since we've already installed Graphite as part of the sandbox, all we need to do to create an InfluxDB pipeline is create a configuration file:
+Up until now we've been using placeholder event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from an Nginx server.
+
+First, install and start Nginx:
+
+```
+sudo yum install -y nginx && sudo systemctl start nginx
+```
+
+And make sure it's working with:
+
+```
+curl -I http://localhost:80
+```
+
+Then install the Sensu HTTP Plugin:
+
+```
+sudo sensu-install -p sensu-plugins-http
+```
+
+We'll be using the `metrics-curl.rb` plugin.
+We can test its output using:
+
+```
+/opt/sensu/embedded/bin/metrics-curl.rb localhost
+```
+
+```
+$ /opt/sensu/embedded/bin/metrics-curl.rb locahost
+...
+sensu-core-sandbox.curl_timings.http_code 200 1535670975
+```
+
+**2. Create an InfluxDB pipeline**
+
+Since we've already installed InfluxDB as part of the sandbox, all we need to do to create an InfluxDB pipeline is create a configuration file:
 
 ```
 sudo nano /etc/sensu/conf.d/handlers/influx.json
@@ -571,7 +566,7 @@ curl -s http://localhost:4567/settings | jq .
 ```
 $ curl -s http://localhost:4567/settings | jq .
 {
-...
+  "...": "...",
   "handlers": {
     "slack": {
       "filters": [
@@ -580,7 +575,7 @@ $ curl -s http://localhost:4567/settings | jq .
       "type": "pipe",
       "command": "handler-slack.rb"
     },
-    "graphite": {
+    "influx": {
       "type": "tcp",
       "socket": {
         "host": "127.0.0.1",
@@ -589,13 +584,13 @@ $ curl -s http://localhost:4567/settings | jq .
       "mutator": "only_check_output"
     }
   },
-...
+  "...": "..."
 }
 ```
 
-**2. Start the Sensu client**
+**3. Start the Sensu client**
 
-Now that we have our Graphite pipeline set up, let's start the Sensu client:
+Now that we have our InfluxDB pipeline set up, let's start the Sensu client:
 
 ```
 sudo systemctl start sensu-client
@@ -619,22 +614,11 @@ $ curl -s http://localhost:4567/clients | jq .
     "version": "1.4.3",
     "timestamp": 1534284788
   },
-  {
-    "name": "docs.sensu.io",
-    "address": "https://docs.sensu.io",
-    "environment": "production",
-    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
-    "keepalives": false,
-    "version": "1.4.3",
-    "timestamp": 1534284314,
-    "subscriptions": [
-      "client:docs.sensu.io"
-    ]
-  }
+  {"...": "..."}
 ]
 ```
 
-In the [dashboard client view](http://172.28.128.3:3000/#/clients), note that the client running in the sandbox executes keepalive checks while the `docs.sensu.io` proxy client cannot.
+In the [dashboard client view](http://172.28.128.3:3000/#/clients), we can see that the client running in the sandbox is executing keepalive checks.
 
 _NOTE: The client gets its name from the `sensu.name` attribute configured as part of sandbox setup.
 You can change the client name using `sudo nano /etc/sensu/uchiwa.json`._
@@ -682,50 +666,15 @@ $ curl -s http://localhost:4567/clients | jq .
     "version": "1.4.3",
     "timestamp": 1534284788
   },
-  {
-    "name": "docs.sensu.io",
-    "address": "https://docs.sensu.io",
-    "environment": "production",
-    "playbook": "https://github.com/sensu/success/wiki/How-to-Respond-to-a-Docs-Outage",
-    "keepalives": false,
-    "version": "1.4.3",
-    "timestamp": 1534284314,
-    "subscriptions": [
-      "client:docs.sensu.io"
-    ]
-  }
+  {"...": "..."}
 ]
 ```
 
 If you don't see the new subscription, wait a few seconds and try the settings API again.
 
-**4. Install the Sensu HTTP Plugins to monitor docs.sensu.io**
+**5. Create a check that produces curl timing events for Nginx**
 
-Up until now we've been using random event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from the docs site.
-
-First we'll install the plugin:
-
-```
-sudo sensu-install -p sensu-plugins-http
-```
-
-We'll be using the `metrics-curl.rb` plugin.
-We can test its output using:
-
-```
-/opt/sensu/embedded/bin/metrics-curl.rb -u https://docs.sensu.io
-```
-
-```
-$ /opt/sensu/embedded/bin/metrics-curl.rb -u https://docs.sensu.io
-sensu-core-sandbox.curl_timings.time_total 0.597 1534193106
-sensu-core-sandbox.curl_timings.time_namelookup 0.065 1534193106
-...
-```
-
-**5. Create a check that produces curl timing events for docs.sensu.io**
-
-Use a configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the Graphite pipeline:
+Use a configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the InfluxDB pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
@@ -735,8 +684,7 @@ sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
 {
   "checks": {
     "check_curl_timings": {
-      "source": "google_maps",
-      "command": "metrics-curl.rb -u https://www.google.com/maps",
+      "command": "/opt/sensu/embedded/bin/metrics-curl.rb localhost",
       "interval": 10,
       "subscribers": ["sandbox-testing"],
       "type": "metric",
@@ -746,7 +694,7 @@ sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
 }
 ```
 
-Note that `"type": "metric"` ensures that Sensu will handle every event, not just warnings and critical alerts.
+Note that `"type": "metric"` ensures that Sensu will handle every event, not just warning and critical alerts.
 
 Restart the Sensu client, server, and API:
 
@@ -763,22 +711,21 @@ curl -s http://localhost:4567/settings | jq .
 ```
 $ curl -s http://localhost:4567/settings | jq .
 {
-...
+  "...": "...",
   "checks": {
     "check_curl_timings": {
-      "source": "docs.sensu.io",
-      "command": "metrics-curl.rb -u https://docs.sensu.io",
+      "command": "/opt/sensu/embedded/bin/metrics-curl.rb localhost",
       "interval": 10,
       "subscribers": [
         "sandbox-testing"
       ],
       "type": "metric",
       "handlers": [
-        "graphite"
+        "influx"
       ]
     }
   },
-...
+  "...": "..."
 }
 ```
 
@@ -825,7 +772,7 @@ sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
       "interval": 10,
       "subscribers": ["sandbox-testing"],
       "type": "metric",
-      "handlers": ["graphite"]
+      "handlers": ["influx"]
     }
   }
 }
@@ -846,20 +793,9 @@ curl -s http://localhost:4567/settings | jq .
 ```
 $ curl -s http://localhost:4567/settings | jq .
 {
-...
-  "checks": {
-    "check_curl_timings": {
-      "source": "docs.sensu.io",
-      "command": "metrics-curl.rb -u https://docs.sensu.io",
-      "interval": 10,
-      "subscribers": [
-        "sandbox-testing"
-      ],
-      "type": "metric",
-      "handlers": [
-        "graphite"
-      ]
-    },
+  "...": "...",
+  "checks":
+    {"...": "..."},
     "check_disk_usage": {
       "command": "/opt/sensu/embedded/bin/metrics-disk-usage.rb",
       "interval": 10,
@@ -868,11 +804,11 @@ $ curl -s http://localhost:4567/settings | jq .
       ],
       "type": "metric",
       "handlers": [
-        "graphite"
+        "influx"
       ]
     }
   },
-...
+  "...": "..."
 }
 ```
 
