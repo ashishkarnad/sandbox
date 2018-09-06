@@ -9,7 +9,7 @@
 IPADDR=$(/sbin/ip -o -4 addr list enp0s8  | awk '{print $4}' | cut -d/ -f1)
 
 # Make sure we have all the package repos we need!
-sudo yum install epel-release nano vi yum-utils openssl httpd curl jq -y
+sudo yum install epel-release nano vi yum-utils openssl httpd -y
 sudo yum groupinstall 'Development Tools' -y
 
 # Set up zero-dependency erlang
@@ -77,6 +77,9 @@ chown -R grafana:grafana /etc/grafana
 # Set up InfluxDB configuration to enable Graphite API endpoint
 rm /etc/influxdb/influxdb.conf
 cp /vagrant/files/influxdb/influxdb.conf /etc/influxdb/influxdb.conf
+
+# Install more tools
+sudo yum install curl jq -y
 
 # Provide Minimal uchiwa conifguration, pointing at API on localhost
 
