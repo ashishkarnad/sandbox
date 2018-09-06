@@ -1,8 +1,15 @@
+############################################
+#            Sensu Core Sandbox            #
+############################################
+#              !!!WARNING!!!               #
+#         NOT FOR PRODUCTION USE           #
+############################################
+
 #!/bin/sh
 IPADDR=$(/sbin/ip -o -4 addr list enp0s8  | awk '{print $4}' | cut -d/ -f1)
 
 # Make sure we have all the package repos we need!
-sudo yum install epel-release nano yum-utils openssl httpd -y
+sudo yum install epel-release nano vi yum-utils openssl httpd curl jq -y
 sudo yum groupinstall 'Development Tools' -y
 
 # Set up zero-dependency erlang
@@ -18,7 +25,7 @@ sudo yum install erlang -y
 # Install rabbitmq
 sudo yum install https://dl.bintray.com/rabbitmq/rabbitmq-server-rpm/rabbitmq-server-3.6.12-1.el7.noarch.rpm -y
 
-# Set up Sensu's repository & Sensu Enterprise
+# Set up Sensu's repository
 echo '[sensu]
 name=sensu
 baseurl="https://repositories.sensuapp.org/yum/$releasever/$basearch/"
@@ -44,12 +51,12 @@ gpgkey=https://packagecloud.io/gpg.key https://grafanarel.s3.amazonaws.com/RPM-G
 sslverify=1
 sslcacert=/etc/pki/tls/certs/ca-bundle.crt' | tee /etc/yum.repos.d/grafana.repo
 
-# Get Redis installed
+# Install Redis
 sudo yum install redis influxdb grafana -y
 systemctl stop firewalld
 systemctl disable firewalld
 
-# Install Sensu itself
+# Install Sensu and Uchiwa
 sudo yum install sensu uchiwa -y
 
 # Provide minimal transport configuration (used by client, server and API)
@@ -59,29 +66,19 @@ echo '{
   }
 }' | sudo tee /etc/sensu/transport.json
 
+# Move Grafana to port 4000
 sed -i 's/^;http_port = 3000/http_port = 4000/' /etc/grafana/grafana.ini
 
-# Ensure config file permissions are correct
+# Ensure config file permissions are correct and set up Grafana configuration
 sudo chown -R sensu:sensu /etc/sensu
 cp -r /vagrant/files/grafana/* /etc/grafana/
 chown -R grafana:grafana /etc/grafana
 
+# Set up InfluxDB configuration to enable Graphite API endpoint
 rm /etc/influxdb/influxdb.conf
 cp /vagrant/files/influxdb/influxdb.conf /etc/influxdb/influxdb.conf
 
-# Install curl and jq helper utilities
-sudo yum install curl jq -y
-
-# Provide minimal uchiwa conifguration, pointing at API on localhost
-# Optionally, you can see Sensu datacenters(see https://docs.uchiwa.io/getting-started/configuration/#datacenters-configuration-sensu) in action by adding an additional 
-# configuration for another datacenter. If you, by chance, spin up Sensu using 
-# kubernetes, it might look like this:
-
-#    {                
-#      "name": "sensu-k8s",                     
-#      "host": "your-minikube-ip",                 
-#      "port": your-minikube-service-port
-#    }
+# Provide Minimal uchiwa conifguration, pointing at API on localhost
 
 echo '{
   "sensu": [
@@ -97,7 +94,7 @@ echo '{
   }
  }' |sudo tee /etc/sensu/uchiwa.json
 
-# Configure sensu to use rabbitmq
+# Configure Sensu to use rabbitmq
 
 echo '{
   "rabbitmq": {
@@ -148,7 +145,12 @@ systemctl enable grafana-server.service
 # Create the InfluxDB database
 influx -execute "CREATE DATABASE sensu;"
 
+# Create two Grafana dashboards
+curl -XPOST -H 'Content-Type: application/json' -d@/vagrant/files/grafana/dashboard-http.json HTTP://admin:admin@127.0.0.1:4000/api/dashboards/db
+curl -XPOST -H 'Content-Type: application/json' -d@/vagrant/files/grafana/dashboard-disk.json HTTP://admin:admin@127.0.0.1:4000/api/dashboards/db
+
 echo -e "=================
 Sensu is now up and running!
-Access it at $IPADDR:3000
+Access the dashboard at $IPADDR:3000
+Access Grafana at $IPADDR:4000
 ================="

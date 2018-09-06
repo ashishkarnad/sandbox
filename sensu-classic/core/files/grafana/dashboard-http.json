@@ -101,7 +101,7 @@
               "type": "fill"
             }
           ],
-          "measurement": "sensu-core-sandbox.curl_timings.time_total",
+          "measurement": "sensu-core-sandbox.curl_timings.http_code",
           "orderByTime": "ASC",
           "policy": "default",
           "refId": "A",
@@ -126,7 +126,7 @@
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Panel Title",
+      "title": "Nginx HTTP Response Codes",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -200,8 +200,8 @@
     ]
   },
   "timezone": "",
-  "title": "New dashboard Copy",
-  "uid": "eKAO2Whiz",
+  "title": "Sensu Core Sandbox",
+  "uid": "core01",
   "version": 5
 }
 }

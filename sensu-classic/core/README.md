@@ -36,7 +36,7 @@ Then open Terminal and enter `cd Documents` followed by `cd sandbox-2-wip`.
 cd core && vagrant up
 ```
 
-This will take around five minutes, so if you haven't already, [read about how Sensu works](https://docs.sensu.io/sensu-core/1.4/overview/architecture) or see the [appendix](#appendix-sandbox-contents) for details about the sandbox.
+This will take around five minutes, so if you haven't already, [read about how Sensu works](https://docs.sensu.io/sensu-core/1.4/overview/architecture) or see the [appendix](#appendix) for details about the sandbox.
 
 **4. SSH into the sandbox:**
 
@@ -62,7 +62,7 @@ curl -s http://localhost:4567/settings | jq .
 ```
 
 With the Sensu server, we can see that we have no active clients, and that Sensu is using RabbitMQ as the transport and Redis as the datastore.
-We can see a lot of this same information in the [dashboard datacenter view](http://172.28.128.3:3000/#/datacenters).
+We can see a lot of this same information in the [dashboard datacenter view](http://172.31.255.4:3000/#/datacenters).
 
 ```json
 $ curl -s http://localhost:4567/settings | jq .
@@ -134,7 +134,7 @@ _NOTE: The events API returns only warning (`"status": 1`) and critical (`"statu
 Event data contains information about the part of your system the event came from (the `client` or `source`), the result of the check (including a `history` of recent `status` results), and the event itself (including the number of `occurrences`).
 
 In this example, the event data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
-We can also see the alert and the client in the [dashboard event view](http://172.28.128.3:3000/#/events) and [client view](http://172.28.128.3:3000/#/clients).
+We can also see the alert and the client in the [dashboard event view](http://172.31.255.4:3000/#/events) and [client view](http://172.31.255.4:3000/#/clients).
 
 ```json
 $ curl -s http://localhost:4567/events | jq .
@@ -192,7 +192,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-After a few seconds, we can check the [dashboard client view](http://172.28.128.3:3000/#/clients) and see that there are no active alerts and that the client is healthy.
+After a few seconds, we can check the [dashboard client view](http://172.31.255.4:3000/#/clients) and see that there are no active alerts and that the client is healthy.
 
 _NOTE: The dashboard auto-refreshes every 10 seconds._
 
@@ -211,7 +211,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/clients
 ```
 
-You can see the new `environment` and `playbook` attributes in the [dashboard client view](http://172.28.128.3:3000/#/clients) or using the clients API:
+You can see the new `environment` and `playbook` attributes in the [dashboard client view](http://172.31.255.4:3000/#/clients) or using the clients API:
 
 ```
 curl -s http://localhost:4567/clients | jq .
@@ -448,7 +448,7 @@ curl -s -XPOST -H 'Content-Type: application/json' \
 http://localhost:4567/results
 ```
 
-We shouldn't see anything in Slack, but we should see an alert in the [dashboard events view](http://172.28.128.3:3000/#/events).
+We shouldn't see anything in Slack, but we should see an alert in the [dashboard events view](http://172.31.255.4:3000/#/events).
 
 Now let's create a critical alert:
 
@@ -471,7 +471,7 @@ Great work. You've created your first Sensu pipeline!
 In the next lesson, we'll tap into the power of Sensu by adding a Sensu client to automate event production.
 
 Before we go, let's create a resolution event.
-(It should not appear in Slack, but we should see the results in the [dashboard client view](http://172.28.128.3:3000/#/clients).)
+(It should not appear in Slack, but we should see the results in the [dashboard client view](http://172.31.255.4:3000/#/clients).)
 
 ```
 curl -s -XPOST -H 'Content-Type: application/json' \
@@ -493,7 +493,7 @@ Instead of sending alerts to Slack, we'll store event data with [InfluxDB](https
 
 **1. Install Nginx and the Sensu HTTP Plugin**
 
-Up until now we've been using placeholder event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to collect real curl times from an Nginx server.
+Up until now we've used placeholder event data, but in this lesson, we'll use the [Sensu HTTP Plugin](https://github.com/sensu-plugins/sensu-plugins-http) to monitor an Nginx server running on the sandbox.
 
 First, install and start Nginx:
 
@@ -618,7 +618,7 @@ $ curl -s http://localhost:4567/clients | jq .
 ]
 ```
 
-In the [dashboard client view](http://172.28.128.3:3000/#/clients), we can see that the client running in the sandbox is executing keepalive checks.
+In the [dashboard client view](http://172.31.255.4:3000/#/clients), we can see that the client running in the sandbox is executing keepalive checks.
 
 _NOTE: The client gets its name from the `sensu.name` attribute configured as part of sandbox setup.
 You can change the client name using `sudo nano /etc/sensu/uchiwa.json`._
@@ -672,9 +672,9 @@ $ curl -s http://localhost:4567/clients | jq .
 
 If you don't see the new subscription, wait a few seconds and try the settings API again.
 
-**5. Create a check that produces curl timing events for Nginx**
+**5. Create a check to monitor Nginx**
 
-Use a configuration file to create a check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the InfluxDB pipeline:
+Use a configuration file to create a service check that runs `metrics-curl.rb` every 10 seconds on all clients with the `sandbox-testing` subscription and send it to the InfluxDB pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_curl_timings.json
@@ -729,10 +729,22 @@ $ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-**6. See the automated events in [Graphite](http://172.28.128.3/?from=-10minutes&showTarget=sensu-core-sandbox.curl_timings.time_total&target=sensu-core-sandbox.curl_timings.time_total) and the [dashboard client view](http://172.28.128.3:3000/#/clients)**
+**6. See the HTTP response code events for Nginx in [Grafana](http://172.31.255.4:4000/d/core01/sensu-core-sandbox).**
 
-We should see a graph of real curl times (in seconds) for the docs site.
-Make sure to enable auto-refresh in Graphite.
+Log in to Grafana as username: `admin` password: `admin`.
+We should see a graph of real HTTP response codes for Nginx.
+
+Now if we turn Nginx off, we should see the impact in Grafana:
+
+```
+sudo systemctl stop nginx
+```
+
+Start Nginx:
+
+```
+sudo systemctl start nginx
+```
 
 **7. Automate disk usage monitoring for the sandbox**
 
@@ -812,10 +824,20 @@ $ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-Now we should be able to see [disk usage metrics for the sandbox in Graphite](http://172.28.128.3/?width=944&height=308&target=sensu-core-sandbox.disk_usage.used_percentage&from=-10minutes).
+Now we should be able to see [disk usage metrics for the sandbox in Grafana](172.31.255.4:4000/d/core02/sensu-core-sandbox-combined).
 
 You made it! You're ready for the next level of Sensu-ing.
 Here are some resources to help continue your journey:
 
-- [Install Sensu with configuration management]
-- [Create application events using the client socket]
+- [Install Sensu with configuration management](https://docs.sensu.io/sensu-core/latest/installation/configuration-management/)
+- [Create application events using the client socket](https://docs.sensu.io/sensu-core/latest/reference/clients/#what-is-the-sensu-client-socket)
+
+## Appendix: Sandbbox Architecture
+
+The Sensu Core sandbox is a CentOS 7 virtual machine managed with Vagrant and VirtualBox.
+It is intended for use as a learning tool. We do not recommend this tool as part of a production installation.
+To install Sensu in production, please see the [installation guide](https://docs.sensu.io/sensu-core/1.4/installation/overview/).
+
+### Sandbox contents
+
+![sandbox-core 3](https://user-images.githubusercontent.com/11339965/45131333-557c4c00-b141-11e8-83db-6e1ba4edcf1e.png)
