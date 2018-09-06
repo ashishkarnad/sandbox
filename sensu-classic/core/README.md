@@ -770,7 +770,7 @@ sensu-core-sandbox.disk_usage.root.avail 39714 1534191189
 ...
 ```
 
-Then create the check using a configuration file, assigning it to the `sandbox-testing` subscription and the Graphite pipeline:
+Then create the check using a configuration file, assigning it to the `sandbox-testing` subscription and the InfluxDB pipeline:
 
 ```
 sudo nano /etc/sensu/conf.d/checks/check_disk_usage.json
@@ -824,7 +824,7 @@ $ curl -s http://localhost:4567/settings | jq .
 }
 ```
 
-Now we should be able to see [disk usage metrics for the sandbox in Grafana](172.31.255.4:4000/d/core02/sensu-core-sandbox-combined).
+Now we should be able to see disk usage metrics for the sandbox in [Grafana](http://172.31.255.4:4000/d/core02/sensu-core-sandbox-combined).
 
 You made it! You're ready for the next level of Sensu-ing.
 Here are some resources to help continue your journey:
