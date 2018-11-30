@@ -8,7 +8,7 @@
     "annotations": null
   },
   "spec": {
-    "timestamp": 1543560349,
+    "timestamp": 1543560853,
     "entity": {
       "metadata": {
         "name": "docs.sensu.io",
@@ -21,9 +21,8 @@
       "interval": 20,
       "publish": true,
       "proxy_entity_name": "docs.sensu.io",
-      "output": "Not great. Total time: x.xxx seconds.",
-      "state": "failing",
-      "status": 1,
+      "output": "Nice! Total time: x.xxx seconds.",
+      "status": 0,
       "metadata": {
         "name": "check_curl_timings",
         "namespace": "default",

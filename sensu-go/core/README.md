@@ -38,9 +38,9 @@ git clone git@github.com:sensu/sandbox.git && cd sandbox/sensu-go/core
 ENABLE_SENSU_SANDBOX_PORT_FORWARDING=1 vagrant up
 ```
 
-This will take around five minutes, so if you haven't already, [read about how Sensu works](https://docs.sensu.io/sensu-core/latest/overview/architecture) or see the [appendix](#appendix-sandbox-architecture) for details about the sandbox.
+This will take around five minutes.
 
-_NOTE: This will configure VirtualBox to forward a couple of tcp ports (3002,4002) from the sandbox VM machine to the localhost to make it easier for you to interact with the Sandbox dashboards. Dashboard links provided below assume port forwarding from the VM to the host is active and reference http://localhost ._
+_NOTE: This will configure VirtualBox to forward a couple of tcp ports (3002 and 4002) from the sandbox VM machine to the localhost to make it easier for you to interact with Sensu. Dashboard links provided below assume port forwarding from the VM to the host is active and references http://localhost._
 
 **4. SSH into the sandbox:**
 
@@ -56,64 +56,125 @@ You should now have shell access to the sandbox and should be greeted with this 
 [sensu_go_sandbox]$
 ```
 
-_NOTE: To exit out of the sandbox, use `CTRL`+`D`.  
-Use `vagrant destroy` then `vagrant up` to erase and restart the sandbox.
-Use `vagrant provision` to reset sandbox's sensu configuration to the beginning of this lesson_
-
+_NOTE: To exit out of the sandbox, use `CTRL`+`D`. Use `vagrant destroy` then `vagrant up` to erase and restart the sandbox. Use `vagrant provision` to reset sandbox's sensu configuration to the beginning of this lesson_
 
 ---
 
-## Lesson \#1: Create an Sensu event
+## Lesson \#1: Create a monitoring event
 
-First off, we'll make sure everything is working correctly by creating a keepalive event with the Sensu agent.
+First off, we'll make sure everything is working correctly by creating a few events with the Sensu backend and sensuctl command line tool.
 
+**1. See the sensuctl settings**
 
-**1. Get list of entities:**
-Let's check to see if any entities has registered yet
+Sensuctl is a helpful command-line tool for managing your Sensu workflows.
+We can use the `--help` flag to learn more about any of sensuctl's commands and subcommands.
+
 ```
-sensuctl entity list
+sensuctl --help
 ```
-No entities in the list yet.
 
-**2. Get list of events:**
-Let's check to see if any events have been registered yet.
+Let's start by seeing our current sensuctl configuration.
+
+```
+sensuctl config view
+```
+
+We can see that sensuctl is configured to connect to the backend at `http://127.0.0.1:8080` and our namespace is set to the default.
+
+```
+=== Active Configuration
+API URL:       http://127.0.0.1:8080
+Sensu Edition: core
+Namespace:     default
+Format:        tabular
+```
+
+**2. Create an event that warns us that docs.sensu.io is loading slowly (and resolve it)**
+
+Let's say we have an application that can test the Sensu docs site and output a string with the response time.
+We can use sensuctl and the Sensu event described in `event.json` to create an event that represents a warning from our pseudo-app that the docs site is getting slow.
+
+```
+cat event.json
+```
+
+Since we're creating this event using sensuctl, Sensu doesn't know where this information is coming from, so we use the `source` attribute to tell Sensu that we're creating this event on behalf of a remote source.
+The `status` attribute represents a warning-level event (0 = OK, 1 = warning, 2 = critical).
+
+```
+sensuctl create --file event.json
+```
+
+Now we can use sensuctl to see the resulting event:
+
 ```
 sensuctl event list
 ```
-No events recorded yet either.
 
-**3. Start the Sensu Agent**
-
-Let's go ahead and start the Sensu agent:
+And get detailed information about the event using the entity and check name:
 
 ```
-sudo systemctl start sensu-agent
+sensuctl event info docs.sensu.io check_curl_timings
 ```
 
-We can see the sandbox agent using sensuctl
+Event data contains information about the part of your system the event came from (the `entity`), the result of the check (including the `output` and `status`), and whether the event was silenced.
+
+In this example, the event data tells us that this is a warning-level alert (`"status": 1`) created while monitoring curl times on `docs.sensu.io`.
+
 ```
-sensuctl entity list
+=== docs.sensu.io - check_curl_timings
+Entity:    docs.sensu.io
+Check:     check_curl_timings
+Output:    Not great. Total time: x.xxx seconds.
+Status:    1
+History:   
+Silenced:  false
 ```
 
-The Sensu agent also sends a keepalive event
+To see this event in the Sensu dashboard, visit http://localhost:3000 and log in as the default admin user (username `admin`; password `P@ssw0rd!`).
+
+We created our first event!
+Now let's remove the warning by creating a resolution event:
+
+```
+sensuctl create --file resolve-event.json
+```
+
+We can use sensuctl to see that the event now has a status of `0`, indicating an ok event status.
+
 ```
 sensuctl event list
 ```
-The sensu-go-sandbox keepalive event has status 0, meaning the agent is successfully able to communicate with the server on a periodic basic.  
-If we wait a minute and check the event list again you will set the `Last Seen` timestamp for the keepalive check has updated.  
 
-We can also see the event and the client in the [dashboard event view](http://localhost:3002/#/events) and [client view](http://localhost:3002/#/clients).
+We can re-check the details of the event using the same `sensuctl event info` command:
+
+```
+sensuctl event info docs.sensu.io check_curl_timings
+```
+
+We should now see that the status is `0` and the `output` indicates an ok check result:
+
+```
+=== docs.sensu.io - check_curl_timings
+Entity:    docs.sensu.io
+Check:     check_curl_timings
+Output:    Nice! Total time: x.xxx seconds.
+Status:    0
+History:   0
+Silenced:  false
+```
+
+After a few seconds, we can check the [dashboard entity view](http://localhost:3000/#/entities) and see that there are no active alerts and that the client is healthy.
+
+_NOTE: The dashboard auto-refreshes every 10 seconds._
 
 ## Lesson \#2: Pipe keepalive events into Slack
 
 Now that we know the sandbox is working properly, let's get to the fun stuff: creating a pipeline.
-In this lesson, we'll create a pipeline to send keepalive alerts to Slack.  At the end of this lesson we'll be able to get an Slack message when any keepalive status goes non-zero.
-
+In this lesson, we'll create a pipeline to send alerts to Slack.
 (If you'd rather not create a Slack account, you can skip ahead to [lesson 3](#lesson-3-automate-event-production-with-the-sensu-agent).)
 
-
 In this lesson, we'll use the [Sensu Slack Handler](https://github.com/sensu/sensu-slack-handler) to create our pipeline. For convenience, this command was installed as part of sandbox provisioning. 
-
 
 **1. Get your Slack webhook URL**
 
@@ -121,47 +182,90 @@ If you're already an admin of a Slack, visit `https://YOUR WORKSPACE NAME HERE.s
 (If you're not yet a Slack admin, start [here](https://slack.com/get-started#create) to create a new workspace.)
 After saving, you'll see your webhook URL under Integration Settings.
 
+In the sandbox, we've included a json handler resource definition in the sandbox for you to edit. Open the `sensu-slack-handler.json` file:
+
+```
+sudo nano sensu-slack-handler.json
+```
+
+And edit the configure to include your Slack channel and webhook url.
+
+**4. Pipe event data into Slack with the Sensu API**
+
+Let's use sensuctl to create an event and send it to our pipeline by adding `"handlers": ["slack"]`.
+Open `event.json` and add `"handlers": ["slack"]` under the check scope so it looks like this:
+
+```
+{
+  "type": "Event",
+  "api_version": "core/v2",
+  "metadata": {
+    "name": "docs.sensu.io",
+    "namespace": "default",
+    "labels": null,
+    "annotations": null
+  },
+  "spec": {
+    "timestamp": 1543560349,
+    "entity": {
+      "metadata": {
+        "name": "docs.sensu.io",
+        "namespace": "default"
+      },
+      "entity_class": "agent"
+    },
+    "check": {
+      "handlers": ["slack"],
+      "command": "http_check.sh https://docs.sensu.io",
+      "interval": 20,
+      "publish": true,
+      "proxy_entity_name": "docs.sensu.io",
+      "output": "Not great. Total time: x.xxx seconds.",
+      "state": "failing",
+      "status": 1,
+      "metadata": {
+        "name": "check_curl_timings",
+        "namespace": "default",
+        "labels": null,
+        "annotations": null
+      }
+    }
+  }
+}
+```
+
+
+
+
+
+
+
+
 
 **2. Test the Slack handler manually**
 We can manually test the operation of the handler on the sandbox commandline. Let's encode the Slack webhook details into environment variables.  
-```
-KEEPALIVE_SLACK_CHANNEL="#sensu-sandbox"
-KEEPALIVE_SLACK_WEBHOOK="https://hooks.slack.com/services/AAA/BBB/CCC"
-```
-You will need to change the channel string and webhook url string to match your particular Slack account configuration.
+
+n, and run the following commands:
 
 
-```
-sensuctl event info sensu-go-sandbox keepalive --format json | /usr/local/bin/sensu-slack-handler -c "${KEEPALIVE_SLACK_CHANNEL}" -w "${KEEPALIVE_SLACK_WEBHOOK"
-```
 
-If you have the correct channel and webhook url configured, you should now see a new "green" message in slack indicating sensu-go-sandbox resolved status.  
-
-Now let's disable the agent service and wait a couple of minutes for the keepalive check to enter the warning state, status = 1.  
-```
-sudo systemctl stop sensu-agent
-``` 
-
-Now is a good time to grab a cup of coffee, or browse the Sensu documentation for a couple of minutes. 
-Let's check to make sure the sandbox keepalive is now in a failed state. 
-```  
-sensuctl event list
-```  
-The keepalive event should report Status = 1 after the agent has been stopped for a couple of minutes.  Once in the failed state, we can manually run the Slack handler again.
+Generate a manual Slack alert with:
 
 ```
-sensuctl event info sensu-go-sandbox keepalive --format json | /usr/local/bin/sensu-slack-handler -c "${KEEPALIVE_SLACK_CHANNEL}" -w "${KEEPALIVE_SLACK_WEBHOOK"
-
+sensuctl event info docs.sensu.io check_curl_timings --format json | /usr/local/bin/sensu-slack-handler -c "${KEEPALIVE_SLACK_CHANNEL}" -w "${KEEPALIVE_SLACK_WEBHOOK}"
 ```
-The resulting slack message is now "orange" indicating a warning, status = 1.  Okay the slack handler works, let's build a Sensu keepalive pipeline
+
+You should now see a new message in Slack indicating that the docs site is loading quickly.
+
+
+
+
+
+
+
   
 
 **2. Edit sensu-slack-handler.json**
-We've included a json handler resource definition in the sandbox for you to edit.  
-```
-nano sensu-slack-handler.json
-```
-Make sure you update the Slack channel and webhook url to match the manual testing from the step above.  
 
 
 **3. Create the handler definition using sensuctl**
